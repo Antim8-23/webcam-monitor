@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>Webcam Monitor</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="permission-overlay" class="permission-overlay">
+      <div class="permission-card">
+        <h2>Kamera &amp; Mikrofon erforderlich</h2>
+        <p>
+          Damit deine Konsole oder Capture-Karte angezeigt werden kann, braucht
+          die App Zugriff auf Kamera und Mikrofon.
+        </p>
+        <button type="button" id="request-permission-btn" class="primary-button">
+          Berechtigung anfordern
+        </button>
+        <p id="permission-error" class="permission-error hidden"></p>
+        <div class="permission-settings hidden" id="permission-settings">
+          <p>Falls keine Abfrage erscheint, in Windows manuell erlauben:</p>
+          <div class="settings-buttons">
+            <button type="button" id="open-camera-settings" class="secondary-button">
+              Kamera-Einstellungen
+            </button>
+            <button type="button" id="open-mic-settings" class="secondary-button">
+              Mikrofon-Einstellungen
+            </button>
+          </div>
+          <p class="permission-hint">
+            In der Entwicklung heißt die App „Electron“. Beide Schalter dort
+            aktivieren, dann erneut „Berechtigung anfordern“ klicken.
+          </p>
+        </div>
+        <p class="app-credit">
+          Entwickelt von
+          <button type="button" id="credit-link-permission" class="credit-link">
+            JaTi Digital
+          </button>
+        </p>
+      </div>
+    </div>
+
+    <div id="app-shell" class="app-shell hidden">
+      <header id="toolbar" class="toolbar">
+        <div class="toolbar-left">
+          <label class="control-inline" for="camera-select">
+            <span class="label">Kamera</span>
+            <select id="camera-select" disabled>
+              <option value="">Geräte werden geladen …</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="toolbar-center">
+          <div class="volume-inline">
+            <span class="label">Lautstärke</span>
+            <input
+              type="range"
+              id="volume-slider"
+              min="0"
+              max="100"
+              value="80"
+              disabled
+            />
+            <span id="volume-value" class="volume-value">80 %</span>
+            <button
+              type="button"
+              id="mute-button"
+              class="mute-button"
+              title="Stummschalten"
+              disabled
+              aria-label="Stummschalten"
+            >
+              🔊
+            </button>
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <button
+            type="button"
+            id="fullscreen-button"
+            class="secondary-button"
+            title="Vollbild (F11)"
+          >
+            Vollbild
+          </button>
+        </div>
+      </header>
+
+      <main class="main">
+        <section class="preview-section">
+          <div id="preview-placeholder" class="preview-placeholder">
+            <p>Wähle eine Kamera aus, um die Vorschau zu starten.</p>
+          </div>
+          <video id="preview" class="preview" autoplay playsinline muted></video>
+          <audio id="audio-out" class="audio-out" autoplay></audio>
+          <div id="fullscreen-hint" class="fullscreen-hint hidden">
+            Esc oder F11 zum Beenden
+          </div>
+        </section>
+
+        <p id="status" class="status" role="status">Bereit</p>
+        <footer class="app-footer">
+          <span id="app-version" class="app-version"></span>
+          <span class="footer-separator">·</span>
+          <span>
+            Entwickelt von
+            <button type="button" id="credit-link" class="credit-link">
+              JaTi Digital
+            </button>
+          </span>
+        </footer>
+      </main>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+assets/icon-build.png
+*.log
+.env
+.env.*
+*.local
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
