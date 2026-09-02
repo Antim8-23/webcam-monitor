@@ -128,6 +128,125 @@ jobs:
           }
           Write-Host "Checksum file verified."
 
+      - name: Prepare SSH connection
+        shell: pwsh
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          foreach ($name in @('DEPLOY_SSH_KEY', 'DEPLOY_KNOWN_HOSTS', 'DEPLOY_HOST', 'DEPLOY_USER', 'DEPLOY_PATH')) {
+            if ([string]::IsNullOrWhiteSpace((Get-Item "Env:$name").Value)) {
+              Write-Error "$name secret fehlt."
+              exit 1
+            }
+          }
+
+          $sshDir = Join-Path $env:USERPROFILE '.ssh'
+          New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+
+          $keyPath = Join-Path $sshDir 'deploy_key'
+          $knownHostsPath = Join-Path $sshDir 'known_hosts_deploy'
+
+          $keyContent = $env:DEPLOY_SSH_KEY.TrimEnd("`r", "`n") + "`n"
+          [System.IO.File]::WriteAllText($keyPath, $keyContent)
+          [System.IO.File]::WriteAllText($knownHostsPath, $env:DEPLOY_KNOWN_HOSTS.Trim())
+
+          icacls $keyPath /inheritance:r | Out-Null
+          icacls $keyPath /grant:r "$($env:USERNAME):(R)" | Out-Null
+
+          "SSH_KEY_PATH=$keyPath" >> $env:GITHUB_ENV
+          "SSH_KNOWN_HOSTS_PATH=$knownHostsPath" >> $env:GITHUB_ENV
+          Write-Host "SSH connection prepared."
+
+      - name: Verify remote deploy path
+        shell: pwsh
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          $remoteTarget = "${env:DEPLOY_USER}@${env:DEPLOY_HOST}"
+          $remoteCmd = "test -d `"$($env:DEPLOY_PATH)`" && test -w `"$($env:DEPLOY_PATH)`""
+
+          & ssh `
+            -i $env:SSH_KEY_PATH `
+            -o "UserKnownHostsFile=$env:SSH_KNOWN_HOSTS_PATH" `
+            -o IdentitiesOnly=yes `
+            -o BatchMode=yes `
+            $remoteTarget `
+            $remoteCmd
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Deploy path missing or not writable on server."
+            exit 1
+          }
+
+          Write-Host "Remote deploy path verified."
+
+      - name: Upload release files to server
+        shell: pwsh
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          $portable = "dist/WebcamMonitor-portable-v$env:VERSION.exe"
+          $setup = "dist/WebcamMonitor-setup-v$env:VERSION.exe"
+          $checksum = "dist/WebcamMonitor-SHA256SUMS-v$env:VERSION.txt"
+          $remoteTarget = "${env:DEPLOY_USER}@${env:DEPLOY_HOST}:$($env:DEPLOY_PATH)/"
+
+          & scp `
+            -i $env:SSH_KEY_PATH `
+            -o "UserKnownHostsFile=$env:SSH_KNOWN_HOSTS_PATH" `
+            -o IdentitiesOnly=yes `
+            -o BatchMode=yes `
+            $portable `
+            $setup `
+            $checksum `
+            $remoteTarget
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "SCP upload failed."
+            exit 1
+          }
+
+          Write-Host "Release files uploaded to server."
+
+      - name: Verify server release files
+        shell: pwsh
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          $portableName = "WebcamMonitor-portable-v$env:VERSION.exe"
+          $setupName = "WebcamMonitor-setup-v$env:VERSION.exe"
+          $checksumName = "WebcamMonitor-SHA256SUMS-v$env:VERSION.txt"
+          $remoteTarget = "${env:DEPLOY_USER}@${env:DEPLOY_HOST}"
+          $remoteCmd = @"
+          test -f `"$($env:DEPLOY_PATH)/$portableName`" &&
+          test -f `"$($env:DEPLOY_PATH)/$setupName`" &&
+          test -f `"$($env:DEPLOY_PATH)/$checksumName`"
+          "@
+
+          & ssh `
+            -i $env:SSH_KEY_PATH `
+            -o "UserKnownHostsFile=$env:SSH_KNOWN_HOSTS_PATH" `
+            -o IdentitiesOnly=yes `
+            -o BatchMode=yes `
+            $remoteTarget `
+            $remoteCmd
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Server file verification failed."
+            exit 1
+          }
+
+          Write-Host "Server release files verified."
+
       - name: Create GitHub Release
         shell: pwsh
         env:
