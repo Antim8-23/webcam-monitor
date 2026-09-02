@@ -6,8 +6,8 @@
   "scripts": {
     "start": "electron .",
     "icons": "node scripts/prepare-icons.js",
-    "build": "electron-builder --win",
-    "build:portable": "electron-builder --win portable"
+    "build": "electron-builder --win --publish never",
+    "build:portable": "electron-builder --win portable --publish never"
   },
   "author": "JaTi Digital (jati-digital.de)",
   "license": "MIT",
