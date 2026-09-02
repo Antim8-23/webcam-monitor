@@ -19,28 +19,30 @@ if (!fs.existsSync(changelogPath)) {
 
 const content = fs.readFileSync(changelogPath, "utf8");
 const escapedVersion = version.replace(/\./g, "\\.");
-const sectionPattern = new RegExp(
-  `^## \\[${escapedVersion}\\][^\\n]*\\n([\\s\\S]*?)(?=^## \\[|$)`,
-  "m"
-);
-const match = content.match(sectionPattern);
+const headerPattern = new RegExp(`^## \\[${escapedVersion}\\][^\\n]*$`, "m");
+const headerMatch = content.match(headerPattern);
 
-if (!match) {
+if (!headerMatch) {
   console.error(
     `Kein CHANGELOG-Abschnitt fuer Version [${version}] gefunden.`
   );
   process.exit(1);
 }
 
-const section = match[1].trim();
+const startIndex = headerMatch.index + headerMatch[0].length;
+const rest = content.slice(startIndex);
+const nextSectionIndex = rest.search(/^## \[/m);
+const section =
+  nextSectionIndex === -1 ? rest : rest.slice(0, nextSectionIndex);
+const trimmed = section.trim();
 
-if (!section) {
+if (!trimmed) {
   console.error(`CHANGELOG-Abschnitt fuer Version [${version}] ist leer.`);
   process.exit(1);
 }
 
 if (outputPath) {
-  fs.writeFileSync(outputPath, `${section}\n`, "utf8");
+  fs.writeFileSync(outputPath, `${trimmed}\n`, "utf8");
 } else {
-  process.stdout.write(`${section}\n`);
+  process.stdout.write(`${trimmed}\n`);
 }

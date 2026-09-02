@@ -12,6 +12,14 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [1.0.0] - 2026-09-02
+
+### Added
+
 - Windows-App für Live-Vorschau von Webcam oder Capture-Karte mit Tonwiedergabe
 - Kameraauswahl, Lautstärkeregler, Stummschalten und Vollbildmodus (F11 / Esc)
 - Automatische Wiederverbindung bei Signalunterbrechung (bis zu 5 Versuche)
