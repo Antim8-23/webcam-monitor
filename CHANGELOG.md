@@ -16,6 +16,17 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 
 ### Fixed
 
+## [1.0.2] - 2026-09-02
+
+### Added
+
+- Automatische Erzeugung einer stabilen `latest.json` mit Versions-, Download-, SHA256-, Größen- und Release-Note-Metadaten
+- `latest.json` wird bei Releases automatisch auf den JaTi-Digital-Downloadserver übertragen
+
+### Changed
+
+- Release-Workflow aktualisiert die stabile Release-Metadatei erst nach erfolgreichem Upload und Verifikation aller versionierten Artefakte
+
 ## [1.0.1] - 2026-09-02
 
 ### Changed
