@@ -70,7 +70,7 @@ npm run icons
 npm run build
 ```
 
-Das Skript skaliert das Icon proportional (ohne Beschnitt) und erzeugt eine mehrstufige `icon.ico`.
+Das Skript skaliert das Icon proportional (ohne Beschnitt) und erzeugt eine mehrstufige `icon.ico`. Portable EXE und NSIS-Installer/Uninstaller nutzen `assets/icon.ico` (inkl. Installer-/Uninstaller-/Header-Icon).
 
 Nur portable Version bauen:
 

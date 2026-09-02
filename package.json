@@ -50,7 +50,10 @@
     },
     "nsis": {
       "oneClick": true,
-      "artifactName": "WebcamMonitor-setup-v${version}.exe"
+      "artifactName": "WebcamMonitor-setup-v${version}.exe",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
     }
   }
 }
