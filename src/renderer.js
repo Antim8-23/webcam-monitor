@@ -23,6 +23,13 @@ const preview = document.getElementById("preview");
 const audioOut = document.getElementById("audio-out");
 const previewPlaceholder = document.getElementById("preview-placeholder");
 const statusEl = document.getElementById("status");
+const updateBanner = document.getElementById("update-banner");
+const updateBannerVersion = document.getElementById("update-banner-version");
+const updateDownloadBtn = document.getElementById("update-download-btn");
+const updateDismissBtn = document.getElementById("update-dismiss-btn");
+const updateNotesToggle = document.getElementById("update-notes-toggle");
+const updateNotesPanel = document.getElementById("update-notes-panel");
+const updateNotesText = document.getElementById("update-notes-text");
 
 let cameras = [];
 let currentStream = null;
@@ -35,6 +42,8 @@ let reconnectAttempts = 0;
 let reconnectTimer = null;
 let deviceChangeTimer = null;
 let isStartingStream = false;
+let updateDismissedForSession = false;
+let pendingUpdateDownloadUrl = null;
 
 const lowLatencyAudioConstraints = {
   echoCancellation: false,
@@ -517,7 +526,68 @@ window.addEventListener("beforeunload", () => {
 loadSavedVolume();
 startHealthMonitor();
 setupAppInfo();
+runUpdateCheck();
 requestPermissions();
+
+function hideUpdateBanner() {
+  updateBanner.classList.add("hidden");
+  updateNotesPanel.classList.add("hidden");
+  updateNotesToggle.textContent = "Änderungen anzeigen";
+}
+
+function showUpdateBanner(result) {
+  if (updateDismissedForSession || !result?.updateAvailable) {
+    hideUpdateBanner();
+    return;
+  }
+
+  pendingUpdateDownloadUrl = result.downloadUrl || null;
+  updateBannerVersion.textContent = `Webcam Monitor v${result.latestVersion} ist verfügbar.`;
+  updateBanner.classList.remove("hidden");
+
+  const notes = typeof result.releaseNotes === "string" ? result.releaseNotes.trim() : "";
+  if (notes) {
+    updateNotesText.textContent = notes;
+    updateNotesToggle.classList.remove("hidden");
+  } else {
+    updateNotesText.textContent = "";
+    updateNotesToggle.classList.add("hidden");
+    updateNotesPanel.classList.add("hidden");
+  }
+}
+
+async function runUpdateCheck() {
+  if (!window.electronAPI?.checkForUpdates) {
+    return;
+  }
+
+  try {
+    const result = await window.electronAPI.checkForUpdates();
+    showUpdateBanner(result);
+  } catch (error) {
+    console.warn("Update check failed:", error);
+  }
+}
+
+updateDownloadBtn.addEventListener("click", async () => {
+  if (!window.electronAPI?.openUpdateDownload || !pendingUpdateDownloadUrl) {
+    return;
+  }
+  await window.electronAPI.openUpdateDownload(pendingUpdateDownloadUrl);
+});
+
+updateDismissBtn.addEventListener("click", () => {
+  updateDismissedForSession = true;
+  hideUpdateBanner();
+});
+
+updateNotesToggle.addEventListener("click", () => {
+  const isHidden = updateNotesPanel.classList.contains("hidden");
+  updateNotesPanel.classList.toggle("hidden", !isHidden);
+  updateNotesToggle.textContent = isHidden
+    ? "Änderungen ausblenden"
+    : "Änderungen anzeigen";
+});
 
 function openPublisherWebsite() {
   window.electronAPI?.openExternal("https://jati-digital.de");

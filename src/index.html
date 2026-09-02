@@ -47,6 +47,38 @@
     </div>
 
     <div id="app-shell" class="app-shell hidden">
+      <div
+        id="update-banner"
+        class="update-banner hidden"
+        role="region"
+        aria-label="Update verfügbar"
+      >
+        <div class="update-banner-content">
+          <div class="update-banner-text">
+            <p class="update-banner-title">Neue Version verfügbar</p>
+            <p id="update-banner-version" class="update-banner-version"></p>
+          </div>
+          <div class="update-banner-actions">
+            <button type="button" id="update-download-btn" class="primary-button">
+              Update herunterladen
+            </button>
+            <button type="button" id="update-dismiss-btn" class="secondary-button">
+              Später
+            </button>
+            <button
+              type="button"
+              id="update-notes-toggle"
+              class="secondary-button update-notes-toggle hidden"
+            >
+              Änderungen anzeigen
+            </button>
+          </div>
+        </div>
+        <div id="update-notes-panel" class="update-notes-panel hidden">
+          <pre id="update-notes-text" class="update-notes-text"></pre>
+        </div>
+      </div>
+
       <header id="toolbar" class="toolbar">
         <div class="toolbar-left">
           <label class="control-inline" for="camera-select">

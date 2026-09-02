@@ -8,8 +8,13 @@ const {
   ipcMain,
 } = require("electron");
 const path = require("path");
+const {
+  checkForUpdates,
+  isAllowedDownloadUrl,
+} = require("./update-check");
 
 let mainWindow = null;
+let lastValidatedDownloadUrl = null;
 
 if (process.platform === "win32") {
   app.setAppUserModelId("de.webcam.monitor");
@@ -124,6 +129,25 @@ app.whenReady().then(() => {
     publisher: "JaTi Digital",
     website: "https://jati-digital.de",
   }));
+
+  ipcMain.handle("check-for-updates", async () => {
+    const currentVersion = app.getVersion();
+    const result = await checkForUpdates(currentVersion);
+    lastValidatedDownloadUrl =
+      result.updateAvailable && isAllowedDownloadUrl(result.downloadUrl)
+        ? result.downloadUrl
+        : null;
+    return result;
+  });
+
+  ipcMain.handle("open-update-download", (_event, url) => {
+    const candidate =
+      typeof url === "string" && url ? url : lastValidatedDownloadUrl;
+    if (!candidate || !isAllowedDownloadUrl(candidate)) {
+      return false;
+    }
+    return shell.openExternal(candidate);
+  });
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

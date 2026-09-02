@@ -107,4 +107,14 @@ Die aktuelle stabile Release-Information liegt öffentlich unter:
 
 https://jati-digital.de/downloads/webcam-monitor/latest.json
 
-Diese Datei wird für die JaTi-Digital-Website und künftig für Update-Erkennung in Webcam Monitor verwendet.
+Diese Datei wird für die JaTi-Digital-Website und die Update-Erkennung in Webcam Monitor verwendet.
+
+## Datenschutz & Netzwerk
+
+- Beim Start kann Webcam Monitor einmalig `https://jati-digital.de/downloads/webcam-monitor/latest.json` abrufen, um nach einer neueren stabilen Version zu suchen.
+- Dabei werden keine Telemetrie-, Geräte-, Kamera-, Mikrofon- oder Nutzungsdaten übertragen.
+- Wie bei normalen HTTP-Anfragen können serverseitig technisch notwendige Logdaten wie IP-Adresse, Zeitpunkt und User-Agent anfallen.
+- Kamera- und Mikrofondaten bleiben weiterhin ausschließlich lokal.
+- Einstellungen in `localStorage` (z. B. zuletzt gewählte Kamera, Lautstärke) bleiben lokal.
+- Kein Account, keine Analytics, keine Cloud-Synchronisation.
+- Updates werden nur angezeigt; der Download erfolgt bewusst manuell im Browser, ohne automatische Installation.

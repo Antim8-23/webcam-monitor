@@ -143,6 +143,63 @@ body {
   flex-direction: column;
 }
 
+.update-banner {
+  flex-shrink: 0;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, #132033 0%, var(--toolbar) 100%);
+  border-bottom: 1px solid var(--border);
+}
+
+.update-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.update-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.update-banner-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.update-banner-version {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.update-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.update-notes-panel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.update-notes-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 .toolbar {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -357,7 +414,8 @@ input[type="range"]:disabled {
 
 body.is-fullscreen .toolbar,
 body.is-fullscreen .status,
-body.is-fullscreen .app-footer {
+body.is-fullscreen .app-footer,
+body.is-fullscreen .update-banner {
   display: none;
 }
 
