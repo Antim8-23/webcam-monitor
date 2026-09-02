@@ -16,6 +16,17 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 
 ### Fixed
 
+## [1.0.1] - 2026-09-02
+
+### Changed
+
+- electron-builder veröffentlicht bei Tag-Builds nicht mehr automatisch selbst nach GitHub
+- GitHub-Release-Workflow überträgt Release-Dateien vor Veröffentlichung automatisch auf den JaTi-Digital-Downloadserver
+
+### Fixed
+
+- SSH-Host-Key wird im Release-Workflow strikt über known_hosts verifiziert
+
 ## [1.0.0] - 2026-09-02
 
 ### Added
