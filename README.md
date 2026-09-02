@@ -70,7 +70,7 @@ npm run icons
 npm run build
 ```
 
-Das Skript zoomt das Icon leicht heran (bessere Darstellung in Taskleiste/Fenster) und erzeugt eine mehrstufige `icon.ico`.
+Das Skript skaliert das Icon proportional (ohne Beschnitt) und erzeugt eine mehrstufige `icon.ico`.
 
 Nur portable Version bauen:
 

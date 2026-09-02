@@ -6,7 +6,6 @@ const sourcePng = path.join(assetsDir, "icon.png");
 const outputIco = path.join(assetsDir, "icon.ico");
 const buildPng = path.join(assetsDir, "icon-build.png");
 
-const ZOOM = 1.45;
 const OUTPUT_SIZE = 256;
 
 async function prepareIcons() {
@@ -17,14 +16,12 @@ async function prepareIcons() {
 
   const sharp = (await import("sharp")).default;
   const metadata = await sharp(sourcePng).metadata();
-  const base = Math.min(metadata.width || OUTPUT_SIZE, metadata.height || OUTPUT_SIZE);
-  const cropSize = Math.max(1, Math.round(base / ZOOM));
-  const left = Math.round(((metadata.width || base) - cropSize) / 2);
-  const top = Math.round(((metadata.height || base) - cropSize) / 2);
 
   await sharp(sourcePng)
-    .extract({ left, top, width: cropSize, height: cropSize })
-    .resize(OUTPUT_SIZE, OUTPUT_SIZE)
+    .resize(OUTPUT_SIZE, OUTPUT_SIZE, {
+      fit: "contain",
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
     .png()
     .toFile(buildPng);
 
