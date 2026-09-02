@@ -91,4 +91,12 @@ Webcam_Programm/
 
 ## Lizenz
 
-MIT — kostenlos nutzbar und weitergeben.
+Webcam Monitor steht unter der [MIT-Lizenz](LICENSE) — kostenlos nutzbar und weitergeben.
+
+**Quellcode:** [github.com/Antim8-23/webcam-monitor](https://github.com/Antim8-23/webcam-monitor)
+
+**Fehler & Verbesserungen:** [GitHub Issues](https://github.com/Antim8-23/webcam-monitor/issues)
+
+**Third-Party:** Die Anwendung basiert auf [Electron](https://www.electronjs.org/) / Chromium und enthält entsprechende Open-Source-Komponenten. Lizenztexte dazu liegen in den Build-Artefakten (z. B. `LICENSES.chromium.html`).
+
+Änderungen und geplante Releases werden in [CHANGELOG.md](CHANGELOG.md) dokumentiert.

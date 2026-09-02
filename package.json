@@ -11,6 +11,13 @@
   },
   "author": "JaTi Digital (jati-digital.de)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Antim8-23/webcam-monitor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Antim8-23/webcam-monitor/issues"
+  },
   "devDependencies": {
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
