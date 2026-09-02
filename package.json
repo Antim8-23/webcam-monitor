@@ -46,11 +46,11 @@
       "signAndEditExecutable": false
     },
     "portable": {
-      "artifactName": "WebcamMonitor-portable.exe"
+      "artifactName": "WebcamMonitor-portable-v${version}.exe"
     },
     "nsis": {
       "oneClick": true,
-      "artifactName": "WebcamMonitor-setup.exe"
+      "artifactName": "WebcamMonitor-setup-v${version}.exe"
     }
   }
 }

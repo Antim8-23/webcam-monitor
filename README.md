@@ -4,7 +4,7 @@ Einfaches Windows-Programm: Webcam oder Capture-Karte auswählen, Live-Bild anze
 
 ## Bedienung
 
-1. Programm starten (`WebcamMonitor-portable.exe` oder per Entwickler: `npm start`)
+1. Programm starten (`WebcamMonitor-portable-vX.Y.Z.exe` oder per Entwickler: `npm start`)
 2. Auf **„Berechtigung anfordern“** klicken — Windows fragt nach Kamera- und Mikrofon-Zugriff
 3. Falls keine Abfrage erscheint: Buttons **Kamera-Einstellungen** / **Mikrofon-Einstellungen** nutzen  
    (bei `npm start` heißt die App in Windows **„Electron“**)
@@ -60,8 +60,8 @@ Ausgabe im Ordner `dist/`:
 
 | Datei | Beschreibung |
 |---|---|
-| `WebcamMonitor-portable.exe` | Portable Version, kein Installer nötig |
-| `WebcamMonitor-setup.exe` | Installer (NSIS) |
+| `WebcamMonitor-portable-vX.Y.Z.exe` | Portable Version, kein Installer nötig |
+| `WebcamMonitor-setup-vX.Y.Z.exe` | Installer (NSIS) |
 
 Nach dem Ersetzen von `assets/icon.png` Icons für Windows neu erzeugen:
 

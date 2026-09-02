@@ -1,0 +1,141 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Resolve and validate version
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') {
+            Write-Error "Ungueltiges Tag-Format: $tag (erwartet: vMAJOR.MINOR.PATCH)"
+            exit 1
+          }
+          $version = $Matches[1]
+          Write-Host "Tag: $tag"
+          Write-Host "Version: $version"
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "TAG=$tag" >> $env:GITHUB_ENV
+
+      - name: Verify package.json version
+        shell: pwsh
+        run: |
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($pkg -ne $env:VERSION) {
+            Write-Error "Tag-Version ($env:VERSION) stimmt nicht mit package.json ($pkg) ueberein."
+            exit 1
+          }
+          Write-Host "package.json version OK: $pkg"
+
+      - name: Extract release notes
+        shell: pwsh
+        run: |
+          node scripts/extract-changelog.js $env:VERSION release-notes.md
+          if (-not (Test-Path release-notes.md)) {
+            Write-Error "release-notes.md wurde nicht erstellt."
+            exit 1
+          }
+          $notes = Get-Content release-notes.md -Raw
+          if ([string]::IsNullOrWhiteSpace($notes)) {
+            Write-Error "release-notes.md ist leer."
+            exit 1
+          }
+          Write-Host "Release notes extracted successfully."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare icons
+        run: npm run icons
+
+      - name: Build Windows artifacts
+        run: npm run build
+
+      - name: Verify build artifacts
+        shell: pwsh
+        run: |
+          $portable = "dist/WebcamMonitor-portable-v$env:VERSION.exe"
+          $setup = "dist/WebcamMonitor-setup-v$env:VERSION.exe"
+          if (-not (Test-Path $portable)) {
+            Write-Error "Fehlende Datei: $portable"
+            exit 1
+          }
+          if (-not (Test-Path $setup)) {
+            Write-Error "Fehlende Datei: $setup"
+            exit 1
+          }
+          Write-Host "Build artifacts verified:"
+          Write-Host "  $portable"
+          Write-Host "  $setup"
+
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          $portableName = "WebcamMonitor-portable-v$env:VERSION.exe"
+          $setupName = "WebcamMonitor-setup-v$env:VERSION.exe"
+          $portablePath = "dist/$portableName"
+          $setupPath = "dist/$setupName"
+          $checksumFile = "dist/WebcamMonitor-SHA256SUMS-v$env:VERSION.txt"
+
+          $portableHash = (Get-FileHash $portablePath -Algorithm SHA256).Hash.ToLower()
+          $setupHash = (Get-FileHash $setupPath -Algorithm SHA256).Hash.ToLower()
+
+          @(
+            "$portableHash  $portableName"
+            "$setupHash  $setupName"
+          ) | Set-Content $checksumFile -Encoding utf8
+
+          Write-Host "Checksum file created: $checksumFile"
+          Get-Content $checksumFile
+
+      - name: Verify checksum file
+        shell: pwsh
+        run: |
+          $checksumFile = "dist/WebcamMonitor-SHA256SUMS-v$env:VERSION.txt"
+          if (-not (Test-Path $checksumFile)) {
+            Write-Error "Checksum-Datei fehlt: $checksumFile"
+            exit 1
+          }
+          $content = Get-Content $checksumFile -Raw
+          $portableName = "WebcamMonitor-portable-v$env:VERSION.exe"
+          $setupName = "WebcamMonitor-setup-v$env:VERSION.exe"
+          if ($content -notmatch [regex]::Escape($portableName)) {
+            Write-Error "Checksum-Datei enthaelt nicht: $portableName"
+            exit 1
+          }
+          if ($content -notmatch [regex]::Escape($setupName)) {
+            Write-Error "Checksum-Datei enthaelt nicht: $setupName"
+            exit 1
+          }
+          Write-Host "Checksum file verified."
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:TAG `
+            "dist/WebcamMonitor-portable-v$env:VERSION.exe" `
+            "dist/WebcamMonitor-setup-v$env:VERSION.exe" `
+            "dist/WebcamMonitor-SHA256SUMS-v$env:VERSION.txt" `
+            --title "Webcam Monitor $env:TAG" `
+            --notes-file release-notes.md
