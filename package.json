@@ -1,6 +1,6 @@
 {
   "name": "webcam-monitor",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Webcam-Vorschau mit Tonwiedergabe für Capture-Karten",
   "main": "electron/main.js",
   "scripts": {

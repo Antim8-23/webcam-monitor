@@ -16,6 +16,19 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 
 ### Fixed
 
+## [1.0.3] - 2026-09-02
+
+### Added
+
+- In-App-Prüfung auf neue stabile Webcam-Monitor-Versionen über die öffentliche `latest.json`
+- Update-Hinweis mit Download-Link und optionalen Release Notes
+
+### Changed
+
+- Update-Prüfung läuft sicher im Electron-Main-Prozess statt im Renderer
+- README/Datenschutz-Dokumentation um den einmaligen Versionsabruf beim Start ergänzt
+- Update-Metadaten und Download-URLs werden vor Verwendung strikt auf HTTPS, Host und erwartetes Schema validiert
+
 ## [1.0.2] - 2026-09-02
 
 ### Added
