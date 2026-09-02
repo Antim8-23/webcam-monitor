@@ -100,3 +100,11 @@ Webcam Monitor steht unter der [MIT-Lizenz](LICENSE) — kostenlos nutzbar und w
 **Third-Party:** Die Anwendung basiert auf [Electron](https://www.electronjs.org/) / Chromium und enthält entsprechende Open-Source-Komponenten. Lizenztexte dazu liegen in den Build-Artefakten (z. B. `LICENSES.chromium.html`).
 
 Änderungen und geplante Releases werden in [CHANGELOG.md](CHANGELOG.md) dokumentiert.
+
+## Release-Metadaten
+
+Die aktuelle stabile Release-Information liegt öffentlich unter:
+
+https://jati-digital.de/downloads/webcam-monitor/latest.json
+
+Diese Datei wird für die JaTi-Digital-Website und künftig für Update-Erkennung in Webcam Monitor verwendet.
