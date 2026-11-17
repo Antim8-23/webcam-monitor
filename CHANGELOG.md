@@ -8,13 +8,12 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 - **MINOR** (z. B. `1.1.0`) — neue Funktionen, abwärtskompatibel
 - **MAJOR** (z. B. `2.0.0`) — größere, inkompatible Änderungen
 
-## [Unreleased]
-
-### Added
-
-### Changed
+## [1.0.4] - 2026-11-17
 
 ### Fixed
+
+- Fehlerbehebung: Startprobleme auf neuer Hardware durch Reduzierung der idealen Auflösung auf 1080p.
+- verbesserte Fehlermeldungen für bessere Diagnose von `getUserMedia`-Fehlern.
 
 ## [1.0.3] - 2026-09-02
 
