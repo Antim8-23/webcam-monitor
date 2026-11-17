@@ -16,6 +16,7 @@ const {
 
 let mainWindow = null;
 let lastValidatedUpdate = null;
+let nativeAudioProcess = null;
 
 if (process.platform === "win32") {
   app.setAppUserModelId("de.webcam.monitor");
@@ -79,6 +80,16 @@ function canInstallUpdatesInPlace() {
 function getUpdateInstallerPath(update) {
   const safeFileName = path.basename(update.installer.fileName);
   return path.join(app.getPath("temp"), `${Date.now()}-${safeFileName}`);
+}
+
+function stopNativeAudio() {
+  if (nativeAudioProcess && !nativeAudioProcess.killed) nativeAudioProcess.kill();
+  nativeAudioProcess = null;
+}
+
+function getNativeAudioHelperPath() {
+  const root = app.isPackaged ? process.resourcesPath : path.join(__dirname, "..");
+  return path.join(root, "native", "DirectShowAudio", "publish", "DirectShowAudio.exe");
 }
 
 app.whenReady().then(() => {
@@ -158,6 +169,18 @@ app.whenReady().then(() => {
     return shell.openExternal(candidate);
   });
 
+  ipcMain.handle("start-native-capture-audio", (_event, videoLabel) => {
+    if (typeof videoLabel !== "string" || !videoLabel) return false;
+    const helper = getNativeAudioHelperPath();
+    if (!require("fs").existsSync(helper)) return false;
+    stopNativeAudio();
+    nativeAudioProcess = spawn(helper, ["--monitor", videoLabel], { windowsHide: true });
+    nativeAudioProcess.on("exit", () => { nativeAudioProcess = null; });
+    return true;
+  });
+
+  ipcMain.handle("stop-native-capture-audio", () => { stopNativeAudio(); return true; });
+
   ipcMain.handle("download-and-install-update", async () => {
     if (!canInstallUpdatesInPlace() || !lastValidatedUpdate?.installer) {
       return { ok: false, message: "Dieses Update kann in dieser App-Version nicht installiert werden." };
@@ -201,6 +224,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("will-quit", () => {
+  stopNativeAudio();
   globalShortcut.unregisterAll();
 });
 

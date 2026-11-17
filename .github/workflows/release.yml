@@ -22,6 +22,11 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
       - name: Resolve and validate version
         shell: pwsh
         run: |
@@ -66,6 +71,9 @@ jobs:
 
       - name: Prepare icons
         run: npm run icons
+
+      - name: Build native DirectShow helper
+        run: npm run native:build
 
       - name: Build Windows artifacts
         env:

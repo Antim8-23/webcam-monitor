@@ -18,4 +18,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
   openUpdateDownload: () => ipcRenderer.invoke("open-update-download"),
   downloadAndInstallUpdate: () => ipcRenderer.invoke("download-and-install-update"),
+  startNativeCaptureAudio: (videoLabel) => ipcRenderer.invoke("start-native-capture-audio", videoLabel),
+  stopNativeCaptureAudio: () => ipcRenderer.invoke("stop-native-capture-audio"),
 });

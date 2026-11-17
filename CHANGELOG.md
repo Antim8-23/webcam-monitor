@@ -8,6 +8,16 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 - **MINOR** (z. B. `1.1.0`) — neue Funktionen, abwärtskompatibel
 - **MAJOR** (z. B. `2.0.0`) — größere, inkompatible Änderungen
 
+## [1.1.0] - 2026-11-17
+
+### Added
+
+- Nativer Windows-DirectShow-Audiofallback für Capture-Karten, deren Audiofilter nicht von Chromium/WebRTC erkannt wird. Der Fallback wird nur verwendet, wenn der normale Kamerastream keinen Audiotrack liefert.
+
+### Changed
+
+- Electron wieder auf 45.3.3 aktualisiert. Die Capture-Kompatibilität hängt nicht mehr von einer veralteten Browser-Runtime ab.
+
 ## [1.0.9] - 2026-11-17
 
 ### Fixed

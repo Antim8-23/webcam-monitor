@@ -319,6 +319,7 @@ function scheduleReconnect(reason) {
 
 function stopCurrentStream() {
   clearReconnectTimer();
+  window.electronAPI?.stopNativeCaptureAudio?.();
 
   if (currentStream) {
     currentStream.getTracks().forEach((track) => {
@@ -416,7 +417,13 @@ async function startStream(camera, options = {}) {
           audioWarning = `Ton nicht verfügbar: ${describeMediaError(error, "Unbekannter Audiofehler")}`;
         }
       } else if (embeddedAudioError) {
-        audioWarning = `Capture-Audio nicht verfügbar: ${describeMediaError(embeddedAudioError, "Unbekannter Audiofehler")}`;
+        const nativeStarted = await window.electronAPI?.startNativeCaptureAudio?.(camera.label);
+        if (nativeStarted) {
+          hasAudio = true;
+          audioWarning = "Ton über nativen DirectShow-Fallback.";
+        } else {
+          audioWarning = `Capture-Audio nicht verfügbar: ${describeMediaError(embeddedAudioError, "Unbekannter Audiofehler")}`;
+        }
       } else if (audioInputs.length) {
         audioWarning = "Kein passender Capture-Audioeingang erkannt. Bitte unter „Ton“ wählen.";
       } else {
