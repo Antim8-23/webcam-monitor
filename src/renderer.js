@@ -221,6 +221,12 @@ function buildEmbeddedCaptureAudioConstraints(camera) {
   }
   return {
     ...lowLatencyAudioConstraints,
+    // Matches the known-working HD60 S request from v1.0.3. These are ideals,
+    // not hard requirements, but guide the legacy DirectShow audio pin toward
+    // its native 48 kHz stereo format.
+    channelCount: { ideal: 2 },
+    sampleRate: { ideal: 48000 },
+    latency: { ideal: 0 },
     groupId: { exact: camera.groupId },
   };
 }

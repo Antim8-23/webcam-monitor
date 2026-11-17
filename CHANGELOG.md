@@ -8,6 +8,13 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 - **MINOR** (z. B. `1.1.0`) — neue Funktionen, abwärtskompatibel
 - **MAJOR** (z. B. `2.0.0`) — größere, inkompatible Änderungen
 
+## [1.0.9] - 2026-11-17
+
+### Fixed
+
+- Electron auf die mit der Elgato Game Capture HD60 S nachweislich funktionierende Runtime 33.4.11 zurückgestellt. Electron 45 konnte den eingebetteten DirectShow-Audiotrack trotz funktionierendem Bild nicht mehr öffnen und löste `OverconstrainedError` aus.
+- Für eingebettetes Capture-Audio werden wieder die bewährten 48-kHz-/Stereo-Präferenzen aus der letzten funktionierenden Capture-Implementierung verwendet.
+
 ## [1.0.8] - 2026-11-17
 
 ### Fixed
