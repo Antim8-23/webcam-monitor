@@ -68,6 +68,9 @@ jobs:
         run: npm run icons
 
       - name: Build Windows artifacts
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: npm run build
 
       - name: Verify build artifacts

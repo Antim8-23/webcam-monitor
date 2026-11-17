@@ -7,8 +7,8 @@ const {
 } = require("../electron/update-check");
 
 function testSemVer() {
-  assert.strictEqual(isSemVerGreater("1.0.3", "1.0.2"), true);
-  assert.strictEqual(isSemVerGreater("1.0.2", "1.0.2"), false);
+  assert.strictEqual(isSemVerGreater("1.0.6", "1.0.5"), true);
+  assert.strictEqual(isSemVerGreater("1.0.5", "1.0.5"), false);
   assert.strictEqual(isSemVerGreater("1.1.0", "1.0.9"), true);
   assert.strictEqual(isSemVerGreater("2.0.0", "1.9.9"), true);
   assert.strictEqual(isSemVerGreater("1.0.10", "1.0.2"), true);
@@ -33,11 +33,18 @@ function testValidateLatestJson() {
       size: 123456,
       sha256: "a".repeat(64),
     },
+    installer: {
+      fileName: "WebcamMonitor-setup-v1.0.3.exe",
+      url: "https://jati-digital.de/downloads/webcam-monitor/WebcamMonitor-setup-v1.0.3.exe",
+      size: 234567,
+      sha256: "b".repeat(64),
+    },
     releaseNotes: "### Added\n\n- Test",
   });
 
   assert.strictEqual(valid.version, "1.0.3");
   assert.strictEqual(valid.downloadUrl.includes("jati-digital.de"), true);
+  assert.strictEqual(valid.installer.fileName, "WebcamMonitor-setup-v1.0.3.exe");
 
   assert.throws(() =>
     validateLatestJson({
@@ -51,6 +58,12 @@ function testValidateLatestJson() {
         url: "https://jati-digital.de/downloads/webcam-monitor/WebcamMonitor-portable-v1.0.3.exe",
         size: 123456,
         sha256: "a".repeat(64),
+      },
+      installer: {
+        fileName: "WebcamMonitor-setup-v1.0.3.exe",
+        url: "https://jati-digital.de/downloads/webcam-monitor/WebcamMonitor-setup-v1.0.3.exe",
+        size: 234567,
+        sha256: "b".repeat(64),
       },
     })
   );

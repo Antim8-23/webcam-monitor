@@ -46,7 +46,7 @@ let reconnectTimer = null;
 let deviceChangeTimer = null;
 let isStartingStream = false;
 let updateDismissedForSession = false;
-let pendingUpdateDownloadUrl = null;
+let updateInstallMode = "portable";
 
 const lowLatencyAudioConstraints = {
   echoCancellation: false,
@@ -139,9 +139,61 @@ function getPreferredAudioInput(camera) {
   // Gerätegruppe zu. Das ist nur eine Auswahlhilfe: Es wird absichtlich nie als
   // harte getUserMedia-Bedingung verwendet.
   if (camera.groupId) {
-    return audioInputs.find((input) => input.groupId === camera.groupId) || null;
+    const groupMatch = audioInputs.find((input) => input.groupId === camera.groupId);
+    if (groupMatch) {
+      return groupMatch;
+    }
   }
-  return null;
+
+  // Some capture cards, including several Elgato models, expose HDMI video and
+  // audio in separate Windows device groups. Fall back to a conservative model
+  // name match instead of selecting the computer's default microphone.
+  const cameraTokens = getDeviceLabelTokens(camera.label);
+  const nameMatch = audioInputs
+    .map((input) => ({ input, score: getDeviceLabelMatchScore(cameraTokens, input.label) }))
+    .filter(({ score }) => score >= 4)
+    .sort((a, b) => b.score - a.score)[0];
+
+  return nameMatch?.input || null;
+}
+
+function getDeviceLabelTokens(label) {
+  const ignoredTokens = new Set([
+    "audio",
+    "camera",
+    "capture",
+    "device",
+    "digital",
+    "input",
+    "interface",
+    "microphone",
+    "sound",
+    "usb",
+    "video",
+  ]);
+
+  return new Set(
+    String(label || "")
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9]+/g, " ")
+      .split(" ")
+      .filter((token) => token.length >= 3 && !ignoredTokens.has(token))
+  );
+}
+
+function getDeviceLabelMatchScore(cameraTokens, audioLabel) {
+  const audioTokens = getDeviceLabelTokens(audioLabel);
+  let score = 0;
+
+  cameraTokens.forEach((token) => {
+    if (audioTokens.has(token)) {
+      // Model terms such as "hd60" are more distinctive than a vendor term.
+      score += Math.min(token.length, 4);
+    }
+  });
+
+  return score;
 }
 
 function buildAudioConstraints(audioInput) {
@@ -634,6 +686,7 @@ function hideUpdateBanner() {
   updateBanner.classList.add("hidden");
   updateNotesPanel.classList.add("hidden");
   updateNotesToggle.textContent = "Änderungen anzeigen";
+  updateDownloadBtn.disabled = false;
 }
 
 function showUpdateBanner(result) {
@@ -642,8 +695,12 @@ function showUpdateBanner(result) {
     return;
   }
 
-  pendingUpdateDownloadUrl = result.downloadUrl || null;
+  updateInstallMode = result.installMode === "installer" ? "installer" : "portable";
   updateBannerVersion.textContent = `Webcam Monitor v${result.latestVersion} ist verfügbar.`;
+  updateDownloadBtn.textContent =
+    updateInstallMode === "installer"
+      ? "Update herunterladen & installieren"
+      : "Update herunterladen";
   updateBanner.classList.remove("hidden");
 
   const notes = typeof result.releaseNotes === "string" ? result.releaseNotes.trim() : "";
@@ -671,10 +728,23 @@ async function runUpdateCheck() {
 }
 
 updateDownloadBtn.addEventListener("click", async () => {
-  if (!window.electronAPI?.openUpdateDownload || !pendingUpdateDownloadUrl) {
+  if (updateInstallMode === "installer") {
+    if (!window.electronAPI?.downloadAndInstallUpdate) {
+      return;
+    }
+
+    updateDownloadBtn.disabled = true;
+    updateDownloadBtn.textContent = "Update wird heruntergeladen …";
+    const result = await window.electronAPI.downloadAndInstallUpdate();
+    if (!result?.ok) {
+      updateDownloadBtn.disabled = false;
+      updateDownloadBtn.textContent = "Update herunterladen & installieren";
+      setStatus(`Update fehlgeschlagen: ${result?.message || "Unbekannter Fehler"}`, "error");
+    }
     return;
   }
-  await window.electronAPI.openUpdateDownload(pendingUpdateDownloadUrl);
+
+  await window.electronAPI?.openUpdateDownload();
 });
 
 updateDismissBtn.addEventListener("click", () => {

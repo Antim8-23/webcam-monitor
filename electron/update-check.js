@@ -1,4 +1,6 @@
 const https = require("https");
+const crypto = require("crypto");
+const fs = require("fs");
 const { URL } = require("url");
 
 const LATEST_JSON_URL =
@@ -7,6 +9,7 @@ const ALLOWED_HOST = "jati-digital.de";
 const DOWNLOAD_PATH_PREFIX =
   "https://jati-digital.de/downloads/webcam-monitor/";
 const MAX_RESPONSE_BYTES = 100 * 1024;
+const MAX_UPDATE_FILE_BYTES = 1024 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 5000;
 const MAX_REDIRECTS = 3;
 
@@ -162,6 +165,156 @@ function fetchLatestJson() {
   return fetchUrl(LATEST_JSON_URL, MAX_REDIRECTS);
 }
 
+function validateReleaseFile(file, version, kind) {
+  if (!file || typeof file !== "object") {
+    throw new Error(`Missing ${kind} metadata`);
+  }
+  if (typeof file.url !== "string" || !isAllowedDownloadUrl(file.url)) {
+    throw new Error(`Invalid ${kind}.url`);
+  }
+  const expectedFileName = `WebcamMonitor-${kind}-v${version}.exe`;
+  if (file.fileName !== expectedFileName) {
+    throw new Error(`${kind}.fileName does not match version`);
+  }
+  if (
+    typeof file.size !== "number" ||
+    !Number.isFinite(file.size) ||
+    file.size <= 0 ||
+    file.size > MAX_UPDATE_FILE_BYTES
+  ) {
+    throw new Error(`Invalid ${kind}.size`);
+  }
+  if (typeof file.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(file.sha256)) {
+    throw new Error(`Invalid ${kind}.sha256`);
+  }
+
+  return {
+    fileName: file.fileName,
+    url: file.url,
+    size: file.size,
+    sha256: file.sha256,
+  };
+}
+
+function downloadUpdateFile(file, destinationPath, redirectsLeft = MAX_REDIRECTS) {
+  return new Promise((resolve, reject) => {
+    if (!file || !isAllowedDownloadUrl(file.url)) {
+      reject(new Error("Invalid update download URL"));
+      return;
+    }
+
+    let url;
+    try {
+      url = new URL(file.url);
+    } catch {
+      reject(new Error("Invalid update download URL"));
+      return;
+    }
+
+    const partialPath = `${destinationPath}.part`;
+    const fail = (error) => {
+      fs.rm(partialPath, { force: true }, () => reject(error));
+    };
+
+    const req = https.request(
+      {
+        hostname: url.hostname,
+        path: `${url.pathname}${url.search}`,
+        method: "GET",
+        headers: { "User-Agent": "WebcamMonitor-Updater" },
+        timeout: 30000,
+      },
+      (res) => {
+        if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
+          res.resume();
+          if (redirectsLeft <= 0) {
+            fail(new Error("Too many redirects"));
+            return;
+          }
+          let redirectUrl;
+          try {
+            redirectUrl = new URL(res.headers.location, file.url);
+          } catch {
+            fail(new Error("Invalid redirect URL"));
+            return;
+          }
+          if (!isAllowedDownloadUrl(redirectUrl.href)) {
+            fail(new Error("Unexpected redirect URL"));
+            return;
+          }
+          downloadUpdateFile({ ...file, url: redirectUrl.href }, destinationPath, redirectsLeft - 1)
+            .then(resolve)
+            .catch(reject);
+          return;
+        }
+
+        if (res.statusCode !== 200) {
+          res.resume();
+          fail(new Error(`HTTP ${res.statusCode}`));
+          return;
+        }
+
+        const advertisedLength = Number(res.headers["content-length"] || 0);
+        if (advertisedLength && advertisedLength !== file.size) {
+          res.resume();
+          fail(new Error("Unexpected update file size"));
+          return;
+        }
+
+        const output = fs.createWriteStream(partialPath, { flags: "w" });
+        const hash = crypto.createHash("sha256");
+        let bytesWritten = 0;
+        let settled = false;
+        const rejectOnce = (error) => {
+          if (!settled) {
+            settled = true;
+            output.destroy();
+            fail(error);
+          }
+        };
+
+        res.on("data", (chunk) => {
+          bytesWritten += chunk.length;
+          if (bytesWritten > file.size || bytesWritten > MAX_UPDATE_FILE_BYTES) {
+            req.destroy();
+            rejectOnce(new Error("Update file exceeds expected size"));
+            return;
+          }
+          hash.update(chunk);
+        });
+        res.on("error", rejectOnce);
+        output.on("error", rejectOnce);
+        output.on("finish", () => {
+          if (settled) {
+            return;
+          }
+          const digest = hash.digest("hex");
+          if (bytesWritten !== file.size || digest !== file.sha256) {
+            rejectOnce(new Error("Downloaded update failed integrity check"));
+            return;
+          }
+          settled = true;
+          fs.rename(partialPath, destinationPath, (error) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+            resolve(destinationPath);
+          });
+        });
+        res.pipe(output);
+      }
+    );
+
+    req.on("timeout", () => {
+      req.destroy();
+      fail(new Error("Update download timeout"));
+    });
+    req.on("error", fail);
+    req.end();
+  });
+}
+
 function validateLatestJson(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new Error("Invalid JSON root");
@@ -186,30 +339,8 @@ function validateLatestJson(data) {
     throw new Error("Invalid releaseDate");
   }
 
-  const portable = data.portable;
-  if (!portable || typeof portable !== "object") {
-    throw new Error("Missing portable metadata");
-  }
-  if (typeof portable.url !== "string" || !isAllowedDownloadUrl(portable.url)) {
-    throw new Error("Invalid portable.url");
-  }
-  const expectedPortableName = `WebcamMonitor-portable-v${data.version}.exe`;
-  if (portable.fileName !== expectedPortableName) {
-    throw new Error("portable.fileName does not match version");
-  }
-  if (
-    typeof portable.size !== "number" ||
-    !Number.isFinite(portable.size) ||
-    portable.size <= 0
-  ) {
-    throw new Error("Invalid portable.size");
-  }
-  if (
-    typeof portable.sha256 !== "string" ||
-    !/^[a-f0-9]{64}$/.test(portable.sha256)
-  ) {
-    throw new Error("Invalid portable.sha256");
-  }
+  const portable = validateReleaseFile(data.portable, data.version, "portable");
+  const installer = validateReleaseFile(data.installer, data.version, "setup");
 
   let releaseNotes = "";
   if (data.releaseNotes !== undefined && data.releaseNotes !== null) {
@@ -222,6 +353,8 @@ function validateLatestJson(data) {
   return {
     version: data.version,
     releaseDate: data.releaseDate,
+    portable,
+    installer,
     downloadUrl: portable.url,
     releaseNotes,
   };
@@ -233,6 +366,8 @@ function createNoUpdateResult(currentVersion) {
     latestVersion: currentVersion,
     updateAvailable: false,
     downloadUrl: null,
+    portable: null,
+    installer: null,
     releaseNotes: "",
     releaseDate: "",
   };
@@ -258,6 +393,8 @@ async function checkForUpdates(currentVersion) {
       latestVersion: validated.version,
       updateAvailable,
       downloadUrl: updateAvailable ? validated.downloadUrl : null,
+      portable: updateAvailable ? validated.portable : null,
+      installer: updateAvailable ? validated.installer : null,
       releaseNotes: validated.releaseNotes,
       releaseDate: validated.releaseDate,
     };
@@ -274,6 +411,7 @@ module.exports = {
   compareSemVer,
   isSemVerGreater,
   isAllowedDownloadUrl,
+  downloadUpdateFile,
   validateLatestJson,
   checkForUpdates,
 };

@@ -119,4 +119,8 @@ Diese Datei wird für die JaTi-Digital-Website und die Update-Erkennung in Webca
 - Kamera- und Mikrofondaten bleiben weiterhin ausschließlich lokal.
 - Einstellungen in `localStorage` (z. B. zuletzt gewählte Kamera, Lautstärke) bleiben lokal.
 - Kein Account, keine Analytics, keine Cloud-Synchronisation.
-- Updates werden nur angezeigt; der Download erfolgt bewusst manuell im Browser, ohne automatische Installation.
+- In einer installierten NSIS-Version lädt der Update-Button den passenden Installer direkt in der App, prüft dessen Größe und SHA-256 gegen die veröffentlichten Release-Metadaten und startet anschließend die Installation. Die portable Version öffnet weiterhin bewusst nur den Download der portablen EXE.
+
+## Windows-Vertrauen und Code-Signing
+
+Windows SmartScreen kann bei unsignierten EXE-Dateien warnen, insbesondere bei neuen oder selten heruntergeladenen Versionen. Der Release-Build unterstützt Authenticode-Signing über die Umgebungsvariablen `CSC_LINK` und `CSC_KEY_PASSWORD`. Für eine warnungsfreie öffentliche Verteilung muss ein gültiges OV- oder EV-Code-Signing-Zertifikat als GitHub-Secret hinterlegt werden; ohne dieses Zertifikat kann keine Anwendung den SmartScreen-Hinweis zuverlässig per Code entfernen.

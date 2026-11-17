@@ -8,6 +8,18 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 - **MINOR** (z. B. `1.1.0`) — neue Funktionen, abwärtskompatibel
 - **MAJOR** (z. B. `2.0.0`) — größere, inkompatible Änderungen
 
+## [1.0.6] - 2026-11-17
+
+### Fixed
+
+- HDMI-Audio von Capture-Karten wird bei getrennter Windows-Gerätegruppe zusätzlich anhand gemeinsamer Modellbezeichnungen automatisch zugeordnet (z. B. „Game Capture HD60 S“ und „Game Capture HD60 S Audio“).
+- Installierte Versionen laden Updates nicht mehr fälschlich als portable EXE herunter.
+
+### Added
+
+- Installierte Windows-Versionen laden den geprüften NSIS-Installer direkt in der App herunter, prüfen Größe und SHA-256 und starten anschließend die stille Installation.
+- Der Release-Build ist für Authenticode-Code-Signing vorbereitet.
+
 ## [1.0.5] - 2026-11-17
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "webcam-monitor",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Webcam-Vorschau mit Tonwiedergabe für Capture-Karten",
   "main": "electron/main.js",
   "scripts": {
@@ -44,7 +44,7 @@
         "nsis"
       ],
       "icon": "assets/icon.ico",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": true
     },
     "portable": {
       "artifactName": "WebcamMonitor-portable-v${version}.exe"

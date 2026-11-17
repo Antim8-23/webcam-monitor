@@ -8,13 +8,14 @@ const {
   ipcMain,
 } = require("electron");
 const path = require("path");
+const { spawn } = require("child_process");
 const {
   checkForUpdates,
-  isAllowedDownloadUrl,
+  downloadUpdateFile,
 } = require("./update-check");
 
 let mainWindow = null;
-let lastValidatedDownloadUrl = null;
+let lastValidatedUpdate = null;
 
 if (process.platform === "win32") {
   app.setAppUserModelId("de.webcam.monitor");
@@ -69,6 +70,15 @@ function registerShortcuts() {
       mainWindow.setFullScreen(false);
     }
   });
+}
+
+function canInstallUpdatesInPlace() {
+  return process.platform === "win32" && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE;
+}
+
+function getUpdateInstallerPath(update) {
+  const safeFileName = path.basename(update.installer.fileName);
+  return path.join(app.getPath("temp"), `${Date.now()}-${safeFileName}`);
 }
 
 app.whenReady().then(() => {
@@ -133,20 +143,46 @@ app.whenReady().then(() => {
   ipcMain.handle("check-for-updates", async () => {
     const currentVersion = app.getVersion();
     const result = await checkForUpdates(currentVersion);
-    lastValidatedDownloadUrl =
-      result.updateAvailable && isAllowedDownloadUrl(result.downloadUrl)
-        ? result.downloadUrl
-        : null;
-    return result;
+    lastValidatedUpdate = result.updateAvailable ? result : null;
+    return {
+      ...result,
+      installMode: canInstallUpdatesInPlace() ? "installer" : "portable",
+    };
   });
 
-  ipcMain.handle("open-update-download", (_event, url) => {
-    const candidate =
-      typeof url === "string" && url ? url : lastValidatedDownloadUrl;
-    if (!candidate || !isAllowedDownloadUrl(candidate)) {
+  ipcMain.handle("open-update-download", () => {
+    const candidate = lastValidatedUpdate?.portable?.url;
+    if (!candidate) {
       return false;
     }
     return shell.openExternal(candidate);
+  });
+
+  ipcMain.handle("download-and-install-update", async () => {
+    if (!canInstallUpdatesInPlace() || !lastValidatedUpdate?.installer) {
+      return { ok: false, message: "Dieses Update kann in dieser App-Version nicht installiert werden." };
+    }
+
+    try {
+      const installerPath = getUpdateInstallerPath(lastValidatedUpdate);
+      await downloadUpdateFile(lastValidatedUpdate.installer, installerPath);
+
+      const installer = spawn(installerPath, ["/S"], {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      installer.unref();
+
+      setTimeout(() => app.quit(), 500);
+      return { ok: true };
+    } catch (error) {
+      console.error("Update-Installation fehlgeschlagen:", error);
+      return {
+        ok: false,
+        message: error?.message || "Update konnte nicht heruntergeladen werden.",
+      };
+    }
   });
 
   app.on("activate", () => {
