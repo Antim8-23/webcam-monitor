@@ -246,8 +246,8 @@ async function startStream(camera, options = {}) {
   const constraints = {
     video: {
       deviceId: { exact: camera.deviceId },
-      width: { ideal: 3840 },
-      height: { ideal: 2160 },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
       frameRate: { ideal: 60, max: 60 },
     },
     audio: buildAudioConstraints(camera),
@@ -258,7 +258,7 @@ async function startStream(camera, options = {}) {
 
     preview.srcObject = currentStream;
     preview.classList.add("active");
-    previewPlaceholder.classList.add("hidden");
+    previewPlaceholder.classList.remove("hidden");
 
     const hasAudio = setupAudioPlayback(currentStream);
     attachStreamMonitoring(currentStream, camera);
@@ -285,7 +285,7 @@ async function startStream(camera, options = {}) {
       scheduleReconnect("Verbindung verloren");
     } else {
       setStatus(
-        `Fehler beim Starten: ${error.message || "Unbekannter Fehler"}`,
+        `Fehler beim Starten: [${error.name}] ${error.message || "Keine Details vorhanden"}`,
         "error"
       );
       cameraSelect.value = "";
