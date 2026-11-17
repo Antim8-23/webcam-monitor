@@ -8,6 +8,13 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 - **MINOR** (z. B. `1.1.0`) — neue Funktionen, abwärtskompatibel
 - **MAJOR** (z. B. `2.0.0`) — größere, inkompatible Änderungen
 
+## [1.0.8] - 2026-11-17
+
+### Fixed
+
+- Capture-Karten mit eingebettetem DirectShow-/Videogerät-Audio – darunter die Elgato Game Capture HD60 S – verwenden wieder zuerst den Audiotrack der gewählten Kamera. Dadurch funktioniert HDMI-Ton auch dann, wenn er niemals als separates Windows-Audioeingabegerät erscheint.
+- Die separate Ton-Auswahl bleibt nur noch ein Fallback für Capture-Karten mit einem eigenständigen Audioeingang.
+
 ## [1.0.7] - 2026-11-17
 
 ### Fixed

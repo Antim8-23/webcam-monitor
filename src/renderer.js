@@ -215,6 +215,16 @@ function buildAudioConstraints(audioInput) {
   };
 }
 
+function buildEmbeddedCaptureAudioConstraints(camera) {
+  if (!camera.groupId) {
+    return false;
+  }
+  return {
+    ...lowLatencyAudioConstraints,
+    groupId: { exact: camera.groupId },
+  };
+}
+
 function getVideoDescription(stream) {
   const settings = stream?.getVideoTracks?.()[0]?.getSettings?.();
   if (!settings?.width || !settings?.height) {
@@ -350,37 +360,62 @@ async function startStream(camera, options = {}) {
     // Do not force a resolution or frame rate. Capture cards frequently advertise
     // only the format of their current HDMI input, and an incompatible constraint
     // used to prevent the entire camera from starting with OverconstrainedError.
-    const videoStream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: { exact: camera.deviceId } },
-      audio: false,
-    });
+    // Legacy capture cards such as the HD60 S expose HDMI audio as a track of
+    // their video source, not as a separate Windows audio input. Prefer that
+    // embedded track whenever the user has left the audio selection on Auto.
+    const wantsEmbeddedCaptureAudio = !audioSelect.value && Boolean(camera.groupId);
+    let embeddedAudioError = null;
 
-    currentStream = videoStream;
+    if (wantsEmbeddedCaptureAudio) {
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: camera.deviceId } },
+          audio: buildEmbeddedCaptureAudioConstraints(camera),
+        });
+      } catch (error) {
+        // A camera must remain usable even when its embedded audio endpoint is
+        // unavailable. Separate inputs are tried below as a fallback.
+        console.warn("Capture-Audio konnte nicht gemeinsam gestartet werden:", error);
+        embeddedAudioError = error;
+      }
+    }
+
+    if (!currentStream) {
+      currentStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: camera.deviceId } },
+        audio: false,
+      });
+    }
 
     preview.srcObject = currentStream;
     preview.classList.add("active");
     previewPlaceholder.classList.add("hidden");
 
-    let hasAudio = false;
+    let hasAudio = setupAudioPlayback(currentStream);
     let audioWarning = "";
-    const audioInput = getPreferredAudioInput(camera);
 
-    if (audioInput) {
-      try {
-        const audioStream = await navigator.mediaDevices.getUserMedia({
-          video: false,
-          audio: buildAudioConstraints(audioInput),
-        });
-        audioStream.getAudioTracks().forEach((track) => currentStream.addTrack(track));
-        hasAudio = setupAudioPlayback(currentStream);
-      } catch (error) {
-        console.warn("Audio konnte nicht gestartet werden:", error);
-        audioWarning = `Ton nicht verfügbar: ${describeMediaError(error, "Unbekannter Audiofehler")}`;
+    if (!hasAudio) {
+      const audioInput = getPreferredAudioInput(camera);
+
+      if (audioInput) {
+        try {
+          const audioStream = await navigator.mediaDevices.getUserMedia({
+            video: false,
+            audio: buildAudioConstraints(audioInput),
+          });
+          audioStream.getAudioTracks().forEach((track) => currentStream.addTrack(track));
+          hasAudio = setupAudioPlayback(currentStream);
+        } catch (error) {
+          console.warn("Audio konnte nicht gestartet werden:", error);
+          audioWarning = `Ton nicht verfügbar: ${describeMediaError(error, "Unbekannter Audiofehler")}`;
+        }
+      } else if (embeddedAudioError) {
+        audioWarning = `Capture-Audio nicht verfügbar: ${describeMediaError(embeddedAudioError, "Unbekannter Audiofehler")}`;
+      } else if (audioInputs.length) {
+        audioWarning = "Kein passender Capture-Audioeingang erkannt. Bitte unter „Ton“ wählen.";
+      } else {
+        audioWarning = "Kein Audiogerät erkannt.";
       }
-    } else if (audioInputs.length) {
-      audioWarning = "Kein passender Capture-Audioeingang erkannt. Erscheint die Karte nicht unter „Ton“, Elgato-Treiber prüfen.";
-    } else {
-      audioWarning = "Kein Audiogerät erkannt."
     }
 
     attachStreamMonitoring(currentStream, camera);

@@ -9,7 +9,7 @@ Einfaches Windows-Programm: Webcam oder Capture-Karte auswählen, Live-Bild anze
 3. Falls keine Abfrage erscheint: Buttons **Kamera-Einstellungen** / **Mikrofon-Einstellungen** nutzen  
    (bei `npm start` heißt die App in Windows **„Electron“**)
 4. Im Dropdown **Kamera auswählen** — die App übernimmt die vom Gerät gelieferte Auflösung und Bildrate, ohne ein Format zu erzwingen
-5. Unter **Ton** bei Bedarf das Audio-Gerät der Capture-Karte auswählen. „Automatisch“ nutzt ein Audio-Gerät aus derselben Windows-Gerätegruppe; bei manchen Capture-Karten müssen Bild und HDMI-Ton einmalig manuell zugeordnet werden.
+5. Unter **Ton** bei Bedarf das Audio-Gerät der Capture-Karte auswählen. „Automatisch“ verwendet zuerst den in der Kamera eingebetteten HDMI-Ton (z. B. HD60 S) und nutzt anschließend ein passendes separates Audio-Gerät als Fallback.
 6. **Vollbild** per Button oder **F11** — beenden mit **Esc** oder **F11**
 7. **Lautstärke** mit dem Regler anpassen (0–100 %)
 
@@ -25,9 +25,8 @@ Die zuletzt gewählte Kamera und Lautstärke werden beim nächsten Start wiederh
 ## Bekannte Einschränkungen
 
 - Manche Capture-Karten liefern Ton nur mit installiertem Herstellertreiber
-- Windows kann Video und HDMI-Ton einer Capture-Karte in verschiedene Gerätegruppen einordnen. In diesem Fall funktioniert das Bild trotzdem; das Audio-Gerät lässt sich im Dropdown **Ton** separat auswählen.
-- Wenn kein Ton hörbar ist: Mikrofon-Berechtigung prüfen und sicherstellen, dass die Capture-Karte unter Windows als Audio-Eingabegerät erscheint
-- Erscheint die Capture-Karte gar nicht im Dropdown **Ton**, kann die App ihren Ton nicht empfangen. Bei der älteren Elgato HD60 S den offiziellen Elgato-Treiber bzw. die Elgato Game Capture HD-Software reparieren oder neu installieren und die Karte direkt an USB 3.x anschließen.
+- Manche Capture-Karten betten HDMI-Ton in den Videostream ein und erscheinen daher nie im Dropdown **Ton**. In diesem Fall die Einstellung **Automatisch** belassen; Webcam Monitor übernimmt den eingebetteten Audiotrack direkt von der Kamera.
+- Windows kann Video und HDMI-Ton anderer Capture-Karten in verschiedene Gerätegruppen einordnen. In diesem Fall lässt sich das Audio-Gerät im Dropdown **Ton** separat auswählen.
 - Die portable `.exe` ist ca. 80–150 MB groß (Electron enthält eine eigene Browser-Engine)
 - Geringe Audio-Verzögerung ist bei Capture-Karten normal; die App nutzt direkte Audiowiedergabe ohne Echo-/Rauschfilter
 - Bei Verbindungsabbruch versucht die App automatisch bis zu 5× neu zu verbinden
