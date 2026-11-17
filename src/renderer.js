@@ -1,4 +1,5 @@
 const STORAGE_KEY_DEVICE = "webcamMonitor.lastDeviceId";
+const STORAGE_KEY_AUDIO_DEVICE = "webcamMonitor.audioDeviceId";
 const STORAGE_KEY_VOLUME = "webcamMonitor.volume";
 
 const RECONNECT_DELAY_MS = 1500;
@@ -16,6 +17,7 @@ const fullscreenButton = document.getElementById("fullscreen-button");
 const fullscreenHint = document.getElementById("fullscreen-hint");
 
 const cameraSelect = document.getElementById("camera-select");
+const audioSelect = document.getElementById("audio-select");
 const volumeSlider = document.getElementById("volume-slider");
 const volumeValue = document.getElementById("volume-value");
 const muteButton = document.getElementById("mute-button");
@@ -32,6 +34,7 @@ const updateNotesPanel = document.getElementById("update-notes-panel");
 const updateNotesText = document.getElementById("update-notes-text");
 
 let cameras = [];
+let audioInputs = [];
 let currentStream = null;
 let activeCamera = null;
 let isMuted = false;
@@ -49,9 +52,6 @@ const lowLatencyAudioConstraints = {
   echoCancellation: false,
   noiseSuppression: false,
   autoGainControl: false,
-  channelCount: { ideal: 2 },
-  sampleRate: { ideal: 48000 },
-  latency: { ideal: 0 },
 };
 
 function setStatus(message, type = "") {
@@ -111,14 +111,53 @@ function clearReconnectTimer() {
   }
 }
 
-function buildAudioConstraints(camera) {
-  if (camera.groupId) {
-    return {
-      ...lowLatencyAudioConstraints,
-      groupId: { exact: camera.groupId },
-    };
+function describeMediaError(error, fallback) {
+  const detail = error?.message ? ` (${error.message})` : "";
+
+  if (error?.name === "OverconstrainedError" || error?.name === "ConstraintNotSatisfiedError") {
+    return `Die angeforderten Geräteoptionen werden nicht unterstützt${detail}.`;
   }
-  return { ...lowLatencyAudioConstraints };
+  if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+    return `Der Zugriff wurde von Windows oder dem Browser blockiert${detail}.`;
+  }
+  if (error?.name === "NotReadableError" || error?.name === "TrackStartError") {
+    return `Das Gerät ist gerade nicht verfügbar oder wird von einer anderen App verwendet${detail}.`;
+  }
+  if (error?.name === "NotFoundError" || error?.name === "DevicesNotFoundError") {
+    return `Das angeforderte Gerät wurde nicht gefunden${detail}.`;
+  }
+  return `${fallback}${detail}`;
+}
+
+function getPreferredAudioInput(camera) {
+  const selectedDeviceId = audioSelect.value;
+  if (selectedDeviceId) {
+    return audioInputs.find((input) => input.deviceId === selectedDeviceId) || null;
+  }
+
+  // Windows ordnet Video und HDMI-Audio bei den meisten Capture-Karten derselben
+  // Gerätegruppe zu. Das ist nur eine Auswahlhilfe: Es wird absichtlich nie als
+  // harte getUserMedia-Bedingung verwendet.
+  if (camera.groupId) {
+    return audioInputs.find((input) => input.groupId === camera.groupId) || null;
+  }
+  return null;
+}
+
+function buildAudioConstraints(audioInput) {
+  return {
+    ...lowLatencyAudioConstraints,
+    ...(audioInput ? { deviceId: { exact: audioInput.deviceId } } : {}),
+  };
+}
+
+function getVideoDescription(stream) {
+  const settings = stream?.getVideoTracks?.()[0]?.getSettings?.();
+  if (!settings?.width || !settings?.height) {
+    return "";
+  }
+  const frameRate = settings.frameRate ? ` · ${Math.round(settings.frameRate)} FPS` : "";
+  return ` · ${settings.width}×${settings.height}${frameRate}`;
 }
 
 function getStreamHealth(stream) {
@@ -243,24 +282,43 @@ async function startStream(camera, options = {}) {
   stopCurrentStream();
   activeCamera = camera;
 
-  const constraints = {
-    video: {
-      deviceId: { exact: camera.deviceId },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      frameRate: { ideal: 60, max: 60 },
-    },
-    audio: buildAudioConstraints(camera),
-  };
-
   try {
-    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    // Do not force a resolution or frame rate. Capture cards frequently advertise
+    // only the format of their current HDMI input, and an incompatible constraint
+    // used to prevent the entire camera from starting with OverconstrainedError.
+    const videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: camera.deviceId } },
+      audio: false,
+    });
+
+    currentStream = videoStream;
 
     preview.srcObject = currentStream;
     preview.classList.add("active");
-    previewPlaceholder.classList.remove("hidden");
+    previewPlaceholder.classList.add("hidden");
 
-    const hasAudio = setupAudioPlayback(currentStream);
+    let hasAudio = false;
+    let audioWarning = "";
+    const audioInput = getPreferredAudioInput(camera);
+
+    if (audioInput) {
+      try {
+        const audioStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: buildAudioConstraints(audioInput),
+        });
+        audioStream.getAudioTracks().forEach((track) => currentStream.addTrack(track));
+        hasAudio = setupAudioPlayback(currentStream);
+      } catch (error) {
+        console.warn("Audio konnte nicht gestartet werden:", error);
+        audioWarning = `Ton nicht verfügbar: ${describeMediaError(error, "Unbekannter Audiofehler")}`;
+      }
+    } else if (audioInputs.length) {
+      audioWarning = "Kein passendes Audiogerät automatisch zugeordnet. Bitte unter „Ton“ wählen.";
+    } else {
+      audioWarning = "Kein Audiogerät erkannt."
+    }
+
     attachStreamMonitoring(currentStream, camera);
 
     volumeSlider.disabled = !hasAudio;
@@ -269,23 +327,25 @@ async function startStream(camera, options = {}) {
     localStorage.setItem(STORAGE_KEY_DEVICE, camera.deviceId);
     reconnectAttempts = 0;
 
+    const videoDescription = getVideoDescription(currentStream);
     if (hasAudio) {
-      setStatus(`Verbunden: ${camera.label}`, "success");
+      setStatus(`Verbunden: ${camera.label}${videoDescription}`, "success");
     } else {
       setStatus(
-        `Verbunden: ${camera.label} — kein Ton erkannt. Mikrofon-Berechtigung prüfen.`,
+        `Bild verbunden: ${camera.label}${videoDescription} — ${audioWarning || "kein Ton erkannt."}`,
         "error"
       );
     }
   } catch (error) {
     console.error(error);
+    stopCurrentStream();
     activeCamera = null;
 
     if (options.isReconnect) {
       scheduleReconnect("Verbindung verloren");
     } else {
       setStatus(
-        `Fehler beim Starten: [${error.name}] ${error.message || "Keine Details vorhanden"}`,
+        `Kamera konnte nicht gestartet werden: ${describeMediaError(error, "Unbekannter Fehler")}`,
         "error"
       );
       cameraSelect.value = "";
@@ -306,11 +366,32 @@ async function loadCameras() {
       groupId: device.groupId,
       label: device.label || `Kamera ${device.deviceId.slice(0, 8)}`,
     }));
+  audioInputs = devices
+    .filter((device) => device.kind === "audioinput")
+    .map((device) => ({
+      deviceId: device.deviceId,
+      groupId: device.groupId,
+      label: device.label || `Audio ${device.deviceId.slice(0, 8)}`,
+    }));
+
+  const savedAudioDeviceId = localStorage.getItem(STORAGE_KEY_AUDIO_DEVICE);
+  audioSelect.innerHTML = '<option value="">Automatisch (passend zur Kamera)</option>';
+  audioInputs.forEach((audioInput) => {
+    const option = document.createElement("option");
+    option.value = audioInput.deviceId;
+    option.textContent = audioInput.label;
+    audioSelect.appendChild(option);
+  });
+  audioSelect.disabled = audioInputs.length === 0;
+  if (savedAudioDeviceId && audioInputs.some((input) => input.deviceId === savedAudioDeviceId)) {
+    audioSelect.value = savedAudioDeviceId;
+  }
 
   cameraSelect.innerHTML = "";
 
   if (cameras.length === 0) {
     cameraSelect.innerHTML = '<option value="">Keine Kameras gefunden</option>';
+    cameraSelect.disabled = true;
     setStatus("Keine Kameras gefunden.", "error");
     return;
   }
@@ -353,14 +434,26 @@ async function requestPermissions() {
   requestPermissionBtn.textContent = "Wird angefragt …";
 
   try {
+    // Video is the only requirement for listing and previewing capture devices.
+    // Requesting it separately means a missing/blocked microphone can never hide
+    // every camera from the user.
     const tempStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: lowLatencyAudioConstraints,
+      video: true,
+      audio: false,
     });
     tempStream.getTracks().forEach((track) => track.stop());
+
+    // Ask for microphone access independently. A missing audio device or a
+    // declined prompt is deliberately non-fatal: video must remain usable.
+    try {
+      const audioPermissionStream = await navigator.mediaDevices.getUserMedia({
+        video: false,
+        audio: lowLatencyAudioConstraints,
+      });
+      audioPermissionStream.getTracks().forEach((track) => track.stop());
+    } catch (audioError) {
+      console.warn("Mikrofon-Berechtigung nicht verfügbar:", audioError);
+    }
 
     permissionsGranted = true;
     showAppShell();
@@ -371,7 +464,7 @@ async function requestPermissions() {
       "Zugriff verweigert. Bitte Kamera und Mikrofon in Windows erlauben.";
 
     if (error.name === "NotFoundError") {
-      message = "Keine Kamera oder kein Mikrofon gefunden.";
+      message = "Keine Kamera gefunden.";
     } else if (error.name === "NotReadableError") {
       message = "Gerät wird bereits von einer anderen Anwendung verwendet.";
     } else if (error.message) {
@@ -440,6 +533,14 @@ cameraSelect.addEventListener("change", async () => {
   const camera = cameras.find((c) => c.deviceId === deviceId);
   if (camera) {
     await startStream(camera);
+  }
+});
+
+audioSelect.addEventListener("change", async () => {
+  localStorage.setItem(STORAGE_KEY_AUDIO_DEVICE, audioSelect.value);
+  if (activeCamera) {
+    reconnectAttempts = 0;
+    await startStream(activeCamera);
   }
 });
 

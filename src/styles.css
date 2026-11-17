@@ -219,6 +219,10 @@ body {
   gap: 10px;
 }
 
+.toolbar-left {
+  flex-wrap: wrap;
+}
+
 .toolbar-center {
   justify-content: center;
 }

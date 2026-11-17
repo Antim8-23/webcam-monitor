@@ -1,10 +1,11 @@
 {
   "name": "webcam-monitor",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Webcam-Vorschau mit Tonwiedergabe für Capture-Karten",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
+    "test:update": "node scripts/test-update-check.js",
     "icons": "node scripts/prepare-icons.js",
     "build": "electron-builder --win --publish never",
     "build:portable": "electron-builder --win portable --publish never"
@@ -19,10 +20,10 @@
     "url": "https://github.com/Antim8-23/webcam-monitor/issues"
   },
   "devDependencies": {
-    "electron": "^33.2.1",
-    "electron-builder": "^25.1.8",
+    "electron": "^45.3.3",
+    "electron-builder": "^26.18.0",
     "png-to-ico": "^3.0.2",
-    "sharp": "^0.33.5"
+    "sharp": "^0.35.5"
   },
   "build": {
     "appId": "de.webcam.monitor",

@@ -8,6 +8,23 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 - **MINOR** (z. B. `1.1.0`) — neue Funktionen, abwärtskompatibel
 - **MAJOR** (z. B. `2.0.0`) — größere, inkompatible Änderungen
 
+## [1.0.5] - 2026-11-17
+
+### Fixed
+
+- Die Kamera wird jetzt unabhängig von Audio angefordert. Ein fehlendes, gesperrtes oder anders zugeordnetes Audiogerät kann die Bildvorschau nicht mehr mit `OverconstrainedError` verhindern.
+- Keine Auflösung oder Bildrate wird mehr erzwungen; jede Kamera bzw. Capture-Karte verwendet ihr tatsächlich ausgehandeltes Eingabeformat.
+- Video und Capture-Audio werden getrennt verbunden. Dadurch funktioniert HDMI-Ton auch dann, wenn Windows Bild und Ton nicht in dieselbe Gerätegruppe einsortiert.
+- Fehlermeldungen für Kamera- und Audiozugriff erklären den jeweiligen Fehlerzustand statt nur „Keine Details vorhanden“ anzuzeigen.
+
+### Added
+
+- Auswahlfeld **Ton** mit automatischer Zuordnung und manueller Wahl eines Audio-Eingabegeräts.
+
+### Changed
+
+- Electron auf 45.3.3, electron-builder auf 26.18.0 und sharp auf 0.35.5 aktualisiert. Damit werden die beim Audit gemeldeten kritischen bzw. hohen Abhängigkeitslücken geschlossen.
+
 ## [1.0.4] - 2026-11-17
 
 ### Fixed

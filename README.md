@@ -5,12 +5,13 @@ Einfaches Windows-Programm: Webcam oder Capture-Karte auswählen, Live-Bild anze
 ## Bedienung
 
 1. Programm starten (`WebcamMonitor-portable-vX.Y.Z.exe` oder per Entwickler: `npm start`)
-2. Auf **„Berechtigung anfordern“** klicken — Windows fragt nach Kamera- und Mikrofon-Zugriff
+2. Auf **„Berechtigung anfordern“** klicken — Windows fragt nach Kamerazugriff; der Mikrofonzugriff für den Ton wird separat angefragt und ist für die Bildvorschau nicht zwingend
 3. Falls keine Abfrage erscheint: Buttons **Kamera-Einstellungen** / **Mikrofon-Einstellungen** nutzen  
    (bei `npm start` heißt die App in Windows **„Electron“**)
-4. Im Dropdown **Kamera auswählen** — das Bild füllt das Fenster maximal aus
-5. **Vollbild** per Button oder **F11** — beenden mit **Esc** oder **F11**
-6. **Lautstärke** mit dem Regler anpassen (0–100 %)
+4. Im Dropdown **Kamera auswählen** — die App übernimmt die vom Gerät gelieferte Auflösung und Bildrate, ohne ein Format zu erzwingen
+5. Unter **Ton** bei Bedarf das Audio-Gerät der Capture-Karte auswählen. „Automatisch“ nutzt ein Audio-Gerät aus derselben Windows-Gerätegruppe; bei manchen Capture-Karten müssen Bild und HDMI-Ton einmalig manuell zugeordnet werden.
+6. **Vollbild** per Button oder **F11** — beenden mit **Esc** oder **F11**
+7. **Lautstärke** mit dem Regler anpassen (0–100 %)
 
 Die zuletzt gewählte Kamera und Lautstärke werden beim nächsten Start wiederhergestellt.
 
@@ -24,7 +25,8 @@ Die zuletzt gewählte Kamera und Lautstärke werden beim nächsten Start wiederh
 ## Bekannte Einschränkungen
 
 - Manche Capture-Karten liefern Ton nur mit installiertem Herstellertreiber
-- Wenn kein Ton hörbar ist: Mikrofon-Berechtigung prüfen und sicherstellen, dass die Karte Audio über dieselbe Quelle bereitstellt
+- Windows kann Video und HDMI-Ton einer Capture-Karte in verschiedene Gerätegruppen einordnen. In diesem Fall funktioniert das Bild trotzdem; das Audio-Gerät lässt sich im Dropdown **Ton** separat auswählen.
+- Wenn kein Ton hörbar ist: Mikrofon-Berechtigung prüfen und sicherstellen, dass die Capture-Karte unter Windows als Audio-Eingabegerät erscheint
 - Die portable `.exe` ist ca. 80–150 MB groß (Electron enthält eine eigene Browser-Engine)
 - Geringe Audio-Verzögerung ist bei Capture-Karten normal; die App nutzt direkte Audiowiedergabe ohne Echo-/Rauschfilter
 - Bei Verbindungsabbruch versucht die App automatisch bis zu 5× neu zu verbinden

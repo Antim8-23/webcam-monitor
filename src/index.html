@@ -13,10 +13,10 @@
   <body>
     <div id="permission-overlay" class="permission-overlay">
       <div class="permission-card">
-        <h2>Kamera &amp; Mikrofon erforderlich</h2>
+        <h2>Kamerazugriff erforderlich</h2>
         <p>
-          Damit deine Konsole oder Capture-Karte angezeigt werden kann, braucht
-          die App Zugriff auf Kamera und Mikrofon.
+          Für das Bild deiner Konsole oder Capture-Karte braucht die App
+          Kamerazugriff. Ton wird anschließend separat und optional verbunden.
         </p>
         <button type="button" id="request-permission-btn" class="primary-button">
           Berechtigung anfordern
@@ -85,6 +85,12 @@
             <span class="label">Kamera</span>
             <select id="camera-select" disabled>
               <option value="">Geräte werden geladen …</option>
+            </select>
+          </label>
+          <label class="control-inline" for="audio-select">
+            <span class="label">Ton</span>
+            <select id="audio-select" disabled>
+              <option value="">Automatisch</option>
             </select>
           </label>
         </div>
