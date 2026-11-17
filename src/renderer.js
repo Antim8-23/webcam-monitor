@@ -164,9 +164,11 @@ function getDeviceLabelTokens(label) {
     "capture",
     "device",
     "digital",
+    "elgato",
     "input",
     "interface",
     "microphone",
+    "nvidia",
     "sound",
     "usb",
     "video",
@@ -178,22 +180,32 @@ function getDeviceLabelTokens(label) {
       .normalize("NFKD")
       .replace(/[^a-z0-9]+/g, " ")
       .split(" ")
-      .filter((token) => token.length >= 3 && !ignoredTokens.has(token))
+      .filter(
+        (token) =>
+          token.length >= 3 &&
+          !ignoredTokens.has(token) &&
+          !/^[0-9a-f]{4}$/i.test(token)
+      )
   );
 }
 
 function getDeviceLabelMatchScore(cameraTokens, audioLabel) {
   const audioTokens = getDeviceLabelTokens(audioLabel);
   let score = 0;
+  let hasModelToken = false;
 
   cameraTokens.forEach((token) => {
     if (audioTokens.has(token)) {
       // Model terms such as "hd60" are more distinctive than a vendor term.
       score += Math.min(token.length, 4);
+      hasModelToken ||= /\d/.test(token);
     }
   });
 
-  return score;
+  // A matching model number is enough ("HD60"), otherwise require at least
+  // two meaningful shared words. This prevents another Elgato USB device, such
+  // as a Wave microphone, from being mistaken for the capture card's audio.
+  return hasModelToken || score >= 6 ? score : 0;
 }
 
 function buildAudioConstraints(audioInput) {
@@ -366,7 +378,7 @@ async function startStream(camera, options = {}) {
         audioWarning = `Ton nicht verfügbar: ${describeMediaError(error, "Unbekannter Audiofehler")}`;
       }
     } else if (audioInputs.length) {
-      audioWarning = "Kein passendes Audiogerät automatisch zugeordnet. Bitte unter „Ton“ wählen.";
+      audioWarning = "Kein passender Capture-Audioeingang erkannt. Erscheint die Karte nicht unter „Ton“, Elgato-Treiber prüfen.";
     } else {
       audioWarning = "Kein Audiogerät erkannt."
     }

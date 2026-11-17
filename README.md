@@ -27,6 +27,7 @@ Die zuletzt gewählte Kamera und Lautstärke werden beim nächsten Start wiederh
 - Manche Capture-Karten liefern Ton nur mit installiertem Herstellertreiber
 - Windows kann Video und HDMI-Ton einer Capture-Karte in verschiedene Gerätegruppen einordnen. In diesem Fall funktioniert das Bild trotzdem; das Audio-Gerät lässt sich im Dropdown **Ton** separat auswählen.
 - Wenn kein Ton hörbar ist: Mikrofon-Berechtigung prüfen und sicherstellen, dass die Capture-Karte unter Windows als Audio-Eingabegerät erscheint
+- Erscheint die Capture-Karte gar nicht im Dropdown **Ton**, kann die App ihren Ton nicht empfangen. Bei der älteren Elgato HD60 S den offiziellen Elgato-Treiber bzw. die Elgato Game Capture HD-Software reparieren oder neu installieren und die Karte direkt an USB 3.x anschließen.
 - Die portable `.exe` ist ca. 80–150 MB groß (Electron enthält eine eigene Browser-Engine)
 - Geringe Audio-Verzögerung ist bei Capture-Karten normal; die App nutzt direkte Audiowiedergabe ohne Echo-/Rauschfilter
 - Bei Verbindungsabbruch versucht die App automatisch bis zu 5× neu zu verbinden

@@ -8,6 +8,13 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 - **MINOR** (z. B. `1.1.0`) — neue Funktionen, abwärtskompatibel
 - **MAJOR** (z. B. `2.0.0`) — größere, inkompatible Änderungen
 
+## [1.0.7] - 2026-11-17
+
+### Fixed
+
+- Die automatische Audiozuordnung verwechselt Capture-Karten nicht mehr mit anderen Geräten desselben Herstellers. USB-Vendor-IDs und Herstellernamen allein gelten nicht mehr als Treffer; erforderlich sind gemeinsame Modellbegriffe wie `HD60`.
+- Der Status meldet dadurch nicht mehr fälschlich eine erfolgreiche Tonverbindung, wenn beispielsweise ein Elgato Wave-Mikrofon statt der Capture-Karte gewählt wurde.
+
 ## [1.0.6] - 2026-11-17
 
 ### Fixed
