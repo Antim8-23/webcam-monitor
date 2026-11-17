@@ -8,6 +8,14 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 - **MINOR** (z. B. `1.1.0`) — neue Funktionen, abwärtskompatibel
 - **MAJOR** (z. B. `2.0.0`) — größere, inkompatible Änderungen
 
+## [1.1.1] - 2026-11-17
+
+### Korrigiert
+
+- Der native DirectShow-Audiofallback wird nun als externe Windows-Ressource verpackt und erst als erfolgreich angezeigt, wenn sein Audiograph tatsächlich läuft.
+- Die Gerätezuordnung ignoriert USB-Kennungen und allgemeine Herstellerbegriffe, damit Capture-Audio nicht mit einem anderen Mikrofon desselben Herstellers verwechselt wird.
+- Bei nativer Audiowiedergabe sind die app-internen Lautstärke- und Stummschaltflächen deaktiviert, da der Ton direkt über die Windows-Audioausgabe läuft.
+
 ## [1.1.0] - 2026-11-17
 
 ### Added

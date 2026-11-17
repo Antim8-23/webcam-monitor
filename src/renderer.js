@@ -399,6 +399,7 @@ async function startStream(camera, options = {}) {
     previewPlaceholder.classList.add("hidden");
 
     let hasAudio = setupAudioPlayback(currentStream);
+    let usesNativeAudio = false;
     let audioWarning = "";
 
     if (!hasAudio) {
@@ -416,13 +417,16 @@ async function startStream(camera, options = {}) {
           console.warn("Audio konnte nicht gestartet werden:", error);
           audioWarning = `Ton nicht verfügbar: ${describeMediaError(error, "Unbekannter Audiofehler")}`;
         }
-      } else if (embeddedAudioError) {
+      } else if (!audioSelect.value) {
         const nativeStarted = await window.electronAPI?.startNativeCaptureAudio?.(camera.label);
         if (nativeStarted) {
           hasAudio = true;
-          audioWarning = "Ton über nativen DirectShow-Fallback.";
+          usesNativeAudio = true;
+          audioWarning = "Ton über den nativen Windows-DirectShow-Fallback.";
         } else {
-          audioWarning = `Capture-Audio nicht verfügbar: ${describeMediaError(embeddedAudioError, "Unbekannter Audiofehler")}`;
+          audioWarning = embeddedAudioError
+            ? `Capture-Audio nicht verfügbar: ${describeMediaError(embeddedAudioError, "Unbekannter Audiofehler")}`
+            : "Kein passender Capture-Audioeingang erkannt. Bitte unter „Ton“ wählen.";
         }
       } else if (audioInputs.length) {
         audioWarning = "Kein passender Capture-Audioeingang erkannt. Bitte unter „Ton“ wählen.";
@@ -433,15 +437,19 @@ async function startStream(camera, options = {}) {
 
     attachStreamMonitoring(currentStream, camera);
 
-    volumeSlider.disabled = !hasAudio;
-    muteButton.disabled = !hasAudio;
+    // The native DirectShow renderer intentionally bypasses Chromium to support
+    // legacy capture drivers. Its level is controlled by Windows, so the app's
+    // per-stream controls must not pretend to affect it.
+    volumeSlider.disabled = !hasAudio || usesNativeAudio;
+    muteButton.disabled = !hasAudio || usesNativeAudio;
 
     localStorage.setItem(STORAGE_KEY_DEVICE, camera.deviceId);
     reconnectAttempts = 0;
 
     const videoDescription = getVideoDescription(currentStream);
     if (hasAudio) {
-      setStatus(`Verbunden: ${camera.label}${videoDescription}`, "success");
+      const audioStatus = usesNativeAudio ? " — Ton über Windows-Audioausgabe." : "";
+      setStatus(`Verbunden: ${camera.label}${videoDescription}${audioStatus}`, "success");
     } else {
       setStatus(
         `Bild verbunden: ${camera.label}${videoDescription} — ${audioWarning || "kein Ton erkannt."}`,

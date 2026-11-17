@@ -81,6 +81,16 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: npm run build
 
+      - name: Verify native audio helper is packaged
+        shell: pwsh
+        run: |
+          $helper = "dist/win-unpacked/resources/native/DirectShowAudio/publish/DirectShowAudio.exe"
+          if (-not (Test-Path $helper)) {
+            Write-Error "Nativer DirectShow-Audiohelper fehlt im Windows-Paket: $helper"
+            exit 1
+          }
+          Write-Host "Native audio helper packaged: $helper"
+
       - name: Verify build artifacts
         shell: pwsh
         run: |

@@ -151,17 +151,30 @@ internal static class Program
     {
         var videoTokens = Tokens(videoLabel);
         return DsDevice.GetDevicesOfCat(FilterCategory.AudioInputDevice)
-            .Select(device => new { Device = device, Score = Tokens(device.Name).Intersect(videoTokens).Sum(token => token.Any(char.IsDigit) ? 4 : 1) })
-            .Where(candidate => candidate.Score >= 4)
+            .Select(device =>
+            {
+                var matches = Tokens(device.Name).Intersect(videoTokens).ToArray();
+                return new
+                {
+                    Device = device,
+                    Matches = matches,
+                    Score = matches.Sum(token => token.Any(char.IsDigit) ? 4 : 1),
+                };
+            })
+            // A model term ("HD60", "4K60" …) is sufficient. Devices without
+            // model terms need two independent descriptive words, which avoids
+            // routing an arbitrary microphone made by the same manufacturer.
+            .Where(candidate => candidate.Matches.Any(token => token.Any(char.IsDigit)) || candidate.Matches.Length >= 2)
             .OrderByDescending(candidate => candidate.Score)
             .Select(candidate => candidate.Device)
             .FirstOrDefault();
     }
 
-    private static HashSet<string> Tokens(string value) =>
-        System.Text.RegularExpressions.Regex.Matches(value.ToLowerInvariant(), "[a-z0-9]{3,}")
+    private static HashSet<string> Tokens(string? value) =>
+        System.Text.RegularExpressions.Regex.Matches(value?.ToLowerInvariant() ?? string.Empty, "[a-z0-9]{3,}")
             .Select(match => match.Value)
-            .Where(token => token is not "audio" and not "capture" and not "camera" and not "device" and not "elgato")
+            .Where(token => token is not "audio" and not "capture" and not "camera" and not "device" and not "digital" and not "elgato" and not "input" and not "microphone" and not "sound" and not "usb" and not "video")
+            .Where(token => !System.Text.RegularExpressions.Regex.IsMatch(token, "^[0-9a-f]{4}$"))
             .ToHashSet();
 
     private static int PrintPins(DsDevice device)

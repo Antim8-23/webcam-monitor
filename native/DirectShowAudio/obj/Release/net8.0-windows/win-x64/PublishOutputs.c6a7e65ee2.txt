@@ -1,2 +1,0 @@
-C:\Users\tim-j\Desktop\Projekte\Programme\Webcam-Monitor\webcam-monitor\native\DirectShowAudio\publish\DirectShowAudio.pdb
-C:\Users\tim-j\Desktop\Projekte\Programme\Webcam-Monitor\webcam-monitor\native\DirectShowAudio\publish\DirectShowAudio.exe

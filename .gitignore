@@ -9,3 +9,6 @@ assets/icon-build.png
 .idea/
 .DS_Store
 Thumbs.db
+native/DirectShowAudio/bin/
+native/DirectShowAudio/obj/
+native/DirectShowAudio/publish/
