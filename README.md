@@ -10,10 +10,11 @@ Einfaches Windows-Programm: Webcam oder Capture-Karte auswählen, Live-Bild anze
    (bei `npm start` heißt die App in Windows **„Electron“**)
 4. Im Dropdown **Kamera auswählen** — die App übernimmt die vom Gerät gelieferte Auflösung und Bildrate, ohne ein Format zu erzwingen
 5. Unter **Ton** bei Bedarf das Audio-Gerät der Capture-Karte auswählen. „Automatisch“ verwendet zuerst den in der Kamera eingebetteten HDMI-Ton (z. B. HD60 S) und nutzt anschließend ein passendes separates Audio-Gerät als Fallback.
-6. **Vollbild** per Button oder **F11** — beenden mit **Esc** oder **F11**
-7. **Lautstärke** mit dem Regler anpassen (0–100 %)
+6. Unter **Ausgabe** „Windows-Standard“ beibehalten oder einen Lautsprecher bzw. ein Headset auswählen. Nicht mehr vorhandene Geräte fallen verständlich auf Windows-Standard zurück.
+7. **Vollbild** per Button oder **F11** — beenden mit **Esc** oder **F11**
+8. **Lautstärke** mit dem Regler anpassen (0–100 %) oder über das Lautsprecher-Symbol stummschalten. Die Einstellung gilt nur für Webcam Monitor, nicht für die Windows-Systemlautstärke.
 
-Die zuletzt gewählte Kamera und Lautstärke werden beim nächsten Start wiederhergestellt.
+Die zuletzt gewählte Kamera, Audioausgabe und Lautstärke werden beim nächsten Start wiederhergestellt.
 
 ## Voraussetzungen (Endnutzer)
 
@@ -27,6 +28,7 @@ Die zuletzt gewählte Kamera und Lautstärke werden beim nächsten Start wiederh
 - Manche Capture-Karten liefern Ton nur mit installiertem Herstellertreiber
 - Manche Capture-Karten betten HDMI-Ton in den Videostream ein und erscheinen daher nie im Dropdown **Ton**. In diesem Fall die Einstellung **Automatisch** belassen; Webcam Monitor übernimmt den eingebetteten Audiotrack direkt von der Kamera.
 - Windows kann Video und HDMI-Ton anderer Capture-Karten in verschiedene Gerätegruppen einordnen. In diesem Fall lässt sich das Audio-Gerät im Dropdown **Ton** separat auswählen.
+- Der native DirectShow-Fallback verwendet für „Windows-Standard“ den Windows-Standardrenderer. Wird ein konkretes Ausgabegerät ausgewählt, wird der Ton innerhalb der App über einen lokalen WASAPI-Renderer auf genau dieses Gerät ausgegeben.
 - Die portable `.exe` ist ca. 80–150 MB groß (Electron enthält eine eigene Browser-Engine)
 - Geringe Audio-Verzögerung ist bei Capture-Karten normal; die App nutzt direkte Audiowiedergabe ohne Echo-/Rauschfilter
 - Bei Verbindungsabbruch versucht die App automatisch bis zu 5× neu zu verbinden
@@ -37,6 +39,7 @@ Die zuletzt gewählte Kamera und Lautstärke werden beim nächsten Start wiederh
 
 - [Node.js](https://nodejs.org/) (LTS, z. B. 20.x oder 22.x)
 - npm (wird mit Node.js mitgeliefert)
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) für den nativen DirectShow-/WASAPI-Audiohelper
 
 ### Installation
 
@@ -54,6 +57,12 @@ npm start
 
 ```bash
 npm run build
+```
+
+Der Build erzeugt den nativen Audiohelper zuvor automatisch im Release-Workflow. Für lokale Tests des Helpers:
+
+```bash
+npm run native:build
 ```
 
 Hinweis: Der Build ist ohne Code-Signing konfiguriert (`signAndEditExecutable: false`), damit er auch ohne Administratorrechte funktioniert. Für die Veröffentlichung kann optional ein Zertifikat ergänzt werden.

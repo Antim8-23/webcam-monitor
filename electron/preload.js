@@ -18,6 +18,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
   openUpdateDownload: () => ipcRenderer.invoke("open-update-download"),
   downloadAndInstallUpdate: () => ipcRenderer.invoke("download-and-install-update"),
-  startNativeCaptureAudio: (videoLabel) => ipcRenderer.invoke("start-native-capture-audio", videoLabel),
+  getNativeAudioOutputs: () => ipcRenderer.invoke("get-native-audio-outputs"),
+  startNativeCaptureAudio: (options) => ipcRenderer.invoke("start-native-capture-audio", options),
   stopNativeCaptureAudio: () => ipcRenderer.invoke("stop-native-capture-audio"),
+  setNativeCaptureAudioVolume: (volume) => ipcRenderer.invoke("set-native-capture-audio-volume", volume),
+  setNativeCaptureAudioMuted: (muted) => ipcRenderer.invoke("set-native-capture-audio-muted", muted),
+  onNativeAudioStopped: (callback) => {
+    ipcRenderer.on("native-audio-stopped", () => callback());
+  },
 });

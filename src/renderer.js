@@ -1,5 +1,6 @@
 const STORAGE_KEY_DEVICE = "webcamMonitor.lastDeviceId";
 const STORAGE_KEY_AUDIO_DEVICE = "webcamMonitor.audioDeviceId";
+const STORAGE_KEY_AUDIO_OUTPUT = "webcamMonitor.audioOutputId";
 const STORAGE_KEY_VOLUME = "webcamMonitor.volume";
 
 const RECONNECT_DELAY_MS = 1500;
@@ -18,6 +19,7 @@ const fullscreenHint = document.getElementById("fullscreen-hint");
 
 const cameraSelect = document.getElementById("camera-select");
 const audioSelect = document.getElementById("audio-select");
+const audioOutputSelect = document.getElementById("audio-output-select");
 const volumeSlider = document.getElementById("volume-slider");
 const volumeValue = document.getElementById("volume-value");
 const muteButton = document.getElementById("mute-button");
@@ -35,10 +37,11 @@ const updateNotesText = document.getElementById("update-notes-text");
 
 let cameras = [];
 let audioInputs = [];
+let audioOutputs = [];
 let currentStream = null;
 let activeCamera = null;
-let isMuted = false;
-let volumeBeforeMute = 80;
+let activeAudioPath = "none";
+let audioState = window.WebcamMonitorAudioState.createAudioState();
 let permissionsGranted = false;
 let fullscreenHintTimer = null;
 let reconnectAttempts = 0;
@@ -82,26 +85,39 @@ function loadSavedVolume() {
   if (saved !== null) {
     const value = Number.parseInt(saved, 10);
     if (!Number.isNaN(value) && value >= 0 && value <= 100) {
-      volumeSlider.value = String(value);
-      volumeBeforeMute = value;
-      updateVolumeDisplay(value);
+      audioState = window.WebcamMonitorAudioState.createAudioState(value);
     }
   }
+  renderVolumeState();
 }
 
 function saveVolume(value) {
   localStorage.setItem(STORAGE_KEY_VOLUME, String(value));
 }
 
-function updateVolumeDisplay(value) {
-  volumeValue.textContent = `${value} %`;
+function renderVolumeState() {
+  const state = audioState.snapshot();
+  volumeSlider.value = String(state.volume);
+  volumeValue.textContent = `${state.volume} %`;
+  muteButton.textContent = state.muted ? "🔇" : "🔊";
+  muteButton.title = state.muted ? "Stummschaltung aufheben" : "Stummschalten";
+  muteButton.setAttribute("aria-label", muteButton.title);
 }
 
-function applyVolume(valuePercent) {
-  if (!audioOut) {
-    return;
+function applyVolume() {
+  const state = audioState.snapshot();
+  if (audioOut) {
+    audioOut.volume = state.effectiveVolume / 100;
   }
-  audioOut.volume = isMuted ? 0 : Math.min(1, Math.max(0, valuePercent / 100));
+  if (activeAudioPath === "native") {
+    window.electronAPI?.setNativeCaptureAudioVolume?.(state.volume);
+    window.electronAPI?.setNativeCaptureAudioMuted?.(state.muted);
+  }
+}
+
+function updateAudioControls(hasAudio) {
+  volumeSlider.disabled = !hasAudio;
+  muteButton.disabled = !hasAudio;
 }
 
 function clearReconnectTimer() {
@@ -320,6 +336,7 @@ function scheduleReconnect(reason) {
 function stopCurrentStream() {
   clearReconnectTimer();
   window.electronAPI?.stopNativeCaptureAudio?.();
+  activeAudioPath = "none";
 
   if (currentStream) {
     currentStream.getTracks().forEach((track) => {
@@ -337,7 +354,105 @@ function stopCurrentStream() {
   previewPlaceholder.classList.remove("hidden");
 }
 
-function setupAudioPlayback(stream) {
+function normalizeOutputLabel(label) {
+  return String(label || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function getSelectedAudioOutput() {
+  return audioOutputs.find((output) => output.id === audioOutputSelect.value) || audioOutputs[0];
+}
+
+function selectDefaultAudioOutput() {
+  audioOutputSelect.value = "default";
+  localStorage.setItem(STORAGE_KEY_AUDIO_OUTPUT, "default");
+  return getSelectedAudioOutput();
+}
+
+async function loadAudioOutputs(devices) {
+  const browserOutputs = devices
+    .filter((device) => device.kind === "audiooutput" && device.deviceId !== "default")
+    .map((device) => ({
+      deviceId: device.deviceId,
+      label: device.label || `Audioausgabe ${device.deviceId.slice(0, 8)}`,
+    }));
+  const nativeOutputs = await window.electronAPI?.getNativeAudioOutputs?.() || [];
+  const nativeByLabel = new Map(nativeOutputs.map((output) => [normalizeOutputLabel(output.label), output]));
+  const knownNativeLabels = new Set();
+
+  audioOutputs = [{ id: "default", label: "Windows-Standard", chromiumDeviceId: "default", nativeOutputId: null }];
+  browserOutputs.forEach((output) => {
+    const nativeOutput = nativeByLabel.get(normalizeOutputLabel(output.label));
+    if (nativeOutput) knownNativeLabels.add(nativeOutput.id);
+    audioOutputs.push({
+      id: `web:${output.deviceId}`,
+      label: output.label,
+      chromiumDeviceId: output.deviceId,
+      nativeOutputId: nativeOutput?.id,
+    });
+  });
+  nativeOutputs.forEach((output) => {
+    if (!knownNativeLabels.has(output.id)) {
+      audioOutputs.push({ id: `native:${output.id}`, label: output.label, nativeOutputId: output.id });
+    }
+  });
+
+  const savedOutputId = localStorage.getItem(STORAGE_KEY_AUDIO_OUTPUT);
+  const selectedOutputId = window.WebcamMonitorAudioState.chooseAvailableOutput(savedOutputId, audioOutputs);
+  audioOutputSelect.innerHTML = "";
+  audioOutputs.forEach((output) => {
+    const option = document.createElement("option");
+    option.value = output.id;
+    option.textContent = output.label;
+    audioOutputSelect.appendChild(option);
+  });
+  audioOutputSelect.value = selectedOutputId;
+  audioOutputSelect.disabled = false;
+
+  if (savedOutputId && selectedOutputId === "default" && savedOutputId !== "default") {
+    setStatus("Das zuletzt gewählte Ausgabegerät ist nicht mehr verfügbar. Windows-Standard wird verwendet.", "error");
+  }
+}
+
+async function applyChromiumOutput() {
+  const output = getSelectedAudioOutput();
+  if (!output?.chromiumDeviceId || typeof audioOut.setSinkId !== "function") return output?.id === "default";
+  try {
+    await audioOut.setSinkId(output.chromiumDeviceId);
+    return true;
+  } catch (error) {
+    console.warn("Audioausgabe konnte nicht gesetzt werden:", error);
+    return false;
+  }
+}
+
+async function startNativeAudio(camera) {
+  let output = getSelectedAudioOutput();
+  if (!output || output.nativeOutputId === undefined) {
+    selectDefaultAudioOutput();
+    output = getSelectedAudioOutput();
+    setStatus("Das gewählte Ausgabegerät unterstützt den nativen Audiopfad nicht. Windows-Standard wird verwendet.", "error");
+  }
+
+  const state = audioState.snapshot();
+  const result = await window.electronAPI?.startNativeCaptureAudio?.({
+    videoLabel: camera.label,
+    outputName: output?.nativeOutputId ?? null,
+    volume: state.volume,
+    muted: state.muted,
+  });
+  if (result?.ok) {
+    activeAudioPath = "native";
+    applyVolume();
+    return { ok: true };
+  }
+  return { ok: false, message: result?.message || "Der native Audiofallback konnte nicht gestartet werden." };
+}
+
+async function setupAudioPlayback(stream) {
   const audioTracks = stream.getAudioTracks();
   if (!audioTracks.length) {
     audioOut.srcObject = null;
@@ -345,9 +460,15 @@ function setupAudioPlayback(stream) {
   }
 
   audioOut.srcObject = new MediaStream(audioTracks);
-  applyVolume(Number.parseInt(volumeSlider.value, 10));
+  if (!(await applyChromiumOutput())) {
+    selectDefaultAudioOutput();
+    await applyChromiumOutput();
+    setStatus("Das gewählte Ausgabegerät ist nicht verfügbar. Windows-Standard wird verwendet.", "error");
+  }
+  activeAudioPath = "chromium";
+  applyVolume();
 
-  audioOut.play().catch((error) => {
+  await audioOut.play().catch((error) => {
     console.error("Audio-Wiedergabe:", error);
   });
 
@@ -398,7 +519,7 @@ async function startStream(camera, options = {}) {
     preview.classList.add("active");
     previewPlaceholder.classList.add("hidden");
 
-    let hasAudio = setupAudioPlayback(currentStream);
+    let hasAudio = await setupAudioPlayback(currentStream);
     let usesNativeAudio = false;
     let audioWarning = "";
 
@@ -412,21 +533,21 @@ async function startStream(camera, options = {}) {
             audio: buildAudioConstraints(audioInput),
           });
           audioStream.getAudioTracks().forEach((track) => currentStream.addTrack(track));
-          hasAudio = setupAudioPlayback(currentStream);
+          hasAudio = await setupAudioPlayback(currentStream);
         } catch (error) {
           console.warn("Audio konnte nicht gestartet werden:", error);
           audioWarning = `Ton nicht verfügbar: ${describeMediaError(error, "Unbekannter Audiofehler")}`;
         }
       } else if (!audioSelect.value) {
-        const nativeStarted = await window.electronAPI?.startNativeCaptureAudio?.(camera.label);
-        if (nativeStarted) {
+        const nativeResult = await startNativeAudio(camera);
+        if (nativeResult.ok) {
           hasAudio = true;
           usesNativeAudio = true;
           audioWarning = "Ton über den nativen Windows-DirectShow-Fallback.";
         } else {
           audioWarning = embeddedAudioError
-            ? `Capture-Audio nicht verfügbar: ${describeMediaError(embeddedAudioError, "Unbekannter Audiofehler")}`
-            : "Kein passender Capture-Audioeingang erkannt. Bitte unter „Ton“ wählen.";
+            ? `Capture-Audio nicht verfügbar: ${describeMediaError(embeddedAudioError, nativeResult.message)}`
+            : nativeResult.message;
         }
       } else if (audioInputs.length) {
         audioWarning = "Kein passender Capture-Audioeingang erkannt. Bitte unter „Ton“ wählen.";
@@ -437,11 +558,7 @@ async function startStream(camera, options = {}) {
 
     attachStreamMonitoring(currentStream, camera);
 
-    // The native DirectShow renderer intentionally bypasses Chromium to support
-    // legacy capture drivers. Its level is controlled by Windows, so the app's
-    // per-stream controls must not pretend to affect it.
-    volumeSlider.disabled = !hasAudio || usesNativeAudio;
-    muteButton.disabled = !hasAudio || usesNativeAudio;
+    updateAudioControls(hasAudio);
 
     localStorage.setItem(STORAGE_KEY_DEVICE, camera.deviceId);
     reconnectAttempts = 0;
@@ -506,6 +623,8 @@ async function loadCameras() {
   if (savedAudioDeviceId && audioInputs.some((input) => input.deviceId === savedAudioDeviceId)) {
     audioSelect.value = savedAudioDeviceId;
   }
+
+  await loadAudioOutputs(devices);
 
   cameraSelect.innerHTML = "";
 
@@ -644,8 +763,7 @@ cameraSelect.addEventListener("change", async () => {
   if (!deviceId) {
     activeCamera = null;
     stopCurrentStream();
-    volumeSlider.disabled = true;
-    muteButton.disabled = true;
+    updateAudioControls(false);
     setStatus("Keine Kamera ausgewählt.");
     return;
   }
@@ -664,35 +782,42 @@ audioSelect.addEventListener("change", async () => {
   }
 });
 
-volumeSlider.addEventListener("input", () => {
-  const value = Number.parseInt(volumeSlider.value, 10);
-  updateVolumeDisplay(value);
-  saveVolume(value);
+audioOutputSelect.addEventListener("change", async () => {
+  localStorage.setItem(STORAGE_KEY_AUDIO_OUTPUT, audioOutputSelect.value);
+  if (activeAudioPath === "chromium") {
+    if (!(await applyChromiumOutput())) {
+      selectDefaultAudioOutput();
+      await applyChromiumOutput();
+      setStatus("Die gewählte Audioausgabe ist nicht verfügbar. Windows-Standard wird verwendet.", "error");
+    }
+    return;
+  }
 
-  if (!isMuted) {
-    volumeBeforeMute = value;
-    applyVolume(value);
+  if (activeAudioPath === "native" && activeCamera) {
+    activeAudioPath = "none";
+    const nativeResult = await startNativeAudio(activeCamera);
+    if (nativeResult.ok) {
+      setStatus(`Verbunden: ${activeCamera.label} — Ton über die gewählte Windows-Audioausgabe.`, "success");
+    } else {
+      updateAudioControls(false);
+      setStatus(`Bild verbunden: ${activeCamera.label} — Audioausgabe konnte nicht gewechselt werden: ${nativeResult.message}`, "error");
+    }
   }
 });
 
-muteButton.addEventListener("click", () => {
-  isMuted = !isMuted;
+volumeSlider.addEventListener("input", () => {
+  const value = Number.parseInt(volumeSlider.value, 10);
+  const state = audioState.setVolume(value);
+  saveVolume(state.volume);
+  renderVolumeState();
+  applyVolume();
+});
 
-  if (isMuted) {
-    volumeBeforeMute = Number.parseInt(volumeSlider.value, 10);
-    muteButton.textContent = "🔇";
-    muteButton.title = "Stummschaltung aufheben";
-    muteButton.setAttribute("aria-label", "Stummschaltung aufheben");
-    applyVolume(0);
-  } else {
-    muteButton.textContent = "🔊";
-    muteButton.title = "Stummschalten";
-    muteButton.setAttribute("aria-label", "Stummschalten");
-    volumeSlider.value = String(volumeBeforeMute);
-    updateVolumeDisplay(volumeBeforeMute);
-    saveVolume(volumeBeforeMute);
-    applyVolume(volumeBeforeMute);
-  }
+muteButton.addEventListener("click", () => {
+  const state = audioState.toggleMuted();
+  saveVolume(state.volume);
+  renderVolumeState();
+  applyVolume();
 });
 
 requestPermissionBtn.addEventListener("click", requestPermissions);
@@ -736,6 +861,13 @@ if (window.electronAPI) {
 
   window.electronAPI.onFullscreenChanged((isFullscreen) => {
     setFullscreenUi(isFullscreen);
+  });
+
+  window.electronAPI.onNativeAudioStopped(() => {
+    if (activeAudioPath !== "native" || !activeCamera) return;
+    activeAudioPath = "none";
+    updateAudioControls(false);
+    setStatus(`Bild verbunden: ${activeCamera.label} — Die native Audiowiedergabe wurde beendet.`, "error");
   });
 }
 

@@ -8,6 +8,7 @@ const {
   ipcMain,
 } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const { spawn } = require("child_process");
 const {
   checkForUpdates,
@@ -17,6 +18,8 @@ const {
 let mainWindow = null;
 let lastValidatedUpdate = null;
 let nativeAudioProcess = null;
+const NATIVE_AUDIO_START_TIMEOUT_MS = 5000;
+const NATIVE_AUDIO_OUTPUT_TIMEOUT_MS = 3000;
 
 if (process.platform === "win32") {
   app.setAppUserModelId("de.webcam.monitor");
@@ -83,13 +86,144 @@ function getUpdateInstallerPath(update) {
 }
 
 function stopNativeAudio() {
-  if (nativeAudioProcess && !nativeAudioProcess.killed) nativeAudioProcess.kill();
+  const process = nativeAudioProcess;
   nativeAudioProcess = null;
+  if (process && !process.killed) process.kill();
 }
 
 function getNativeAudioHelperPath() {
   const root = app.isPackaged ? process.resourcesPath : path.join(__dirname, "..");
   return path.join(root, "native", "DirectShowAudio", "publish", "DirectShowAudio.exe");
+}
+
+function isSafeNativeText(value, maxLength = 512) {
+  return typeof value === "string" && value.length > 0 && value.length <= maxLength && !value.includes("\0");
+}
+
+function normalizeNativeVolume(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.round(Math.min(100, Math.max(0, numeric)));
+}
+
+function sendNativeAudioCommand(command) {
+  if (!nativeAudioProcess || nativeAudioProcess.killed || !nativeAudioProcess.stdin?.writable) {
+    return false;
+  }
+
+  try {
+    nativeAudioProcess.stdin.write(`${command}\n`);
+    return true;
+  } catch (error) {
+    console.warn("DirectShow-Audiobefehl konnte nicht gesendet werden:", error);
+    return false;
+  }
+}
+
+function getNativeAudioOutputs() {
+  const helper = getNativeAudioHelperPath();
+  if (!fs.existsSync(helper)) return Promise.resolve([]);
+
+  return new Promise((resolve) => {
+    const process = spawn(helper, ["--list-output"], {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let settled = false;
+    const finish = (outputs = []) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(outputs);
+    };
+    const timeout = setTimeout(() => {
+      process.kill();
+      finish();
+    }, NATIVE_AUDIO_OUTPUT_TIMEOUT_MS);
+
+    process.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+      if (stdout.length > 64 * 1024) {
+        process.kill();
+        finish();
+      }
+    });
+    process.on("error", () => finish());
+    process.on("exit", (code) => {
+      if (code !== 0) return finish();
+      try {
+        const parsed = JSON.parse(stdout);
+        const outputs = Array.isArray(parsed)
+          ? parsed
+            .filter((output) => output && isSafeNativeText(output.id, 512) && isSafeNativeText(output.label, 256))
+            .map((output) => ({ id: output.id, label: output.label }))
+          : [];
+        finish(outputs);
+      } catch {
+        finish();
+      }
+    });
+  });
+}
+
+function startNativeAudio(videoLabel, outputName, volume, muted) {
+  const helper = getNativeAudioHelperPath();
+  if (!isSafeNativeText(videoLabel) || !fs.existsSync(helper)) {
+    return Promise.resolve({ ok: false, message: "Der native Audiohelper ist nicht verfügbar." });
+  }
+
+  if (outputName !== null && outputName !== undefined && !isSafeNativeText(outputName, 256)) {
+    return Promise.resolve({ ok: false, message: "Ungültiges Audioausgabegerät." });
+  }
+
+  const normalizedVolume = normalizeNativeVolume(volume);
+  if (normalizedVolume === null || typeof muted !== "boolean") {
+    return Promise.resolve({ ok: false, message: "Ungültige Audioeinstellungen." });
+  }
+
+  stopNativeAudio();
+  const args = ["--monitor", videoLabel, "--volume", String(normalizedVolume), "--muted", muted ? "1" : "0"];
+  if (outputName) args.push("--output", outputName);
+
+  return new Promise((resolve) => {
+    const process = spawn(helper, args, {
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    nativeAudioProcess = process;
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    };
+    const timeout = setTimeout(() => {
+      if (nativeAudioProcess === process) stopNativeAudio();
+      finish({ ok: false, message: "Der native Audiograph wurde nicht rechtzeitig gestartet." });
+    }, NATIVE_AUDIO_START_TIMEOUT_MS);
+
+    process.stdout.on("data", (chunk) => {
+      if (chunk.toString().includes("DirectShow audio monitoring started.")) {
+        finish({ ok: true });
+      }
+    });
+    process.stderr.on("data", (chunk) => {
+      console.warn("DirectShow-Audiofallback:", chunk.toString().trim());
+    });
+    process.on("error", () => finish({ ok: false, message: "Der native Audiohelper konnte nicht gestartet werden." }));
+    process.on("exit", () => {
+      const wasActive = nativeAudioProcess === process;
+      if (wasActive) {
+        nativeAudioProcess = null;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("native-audio-stopped");
+        }
+      }
+      finish({ ok: false, message: "Der native Audiograph wurde beendet." });
+    });
+  });
 }
 
 app.whenReady().then(() => {
@@ -169,47 +303,24 @@ app.whenReady().then(() => {
     return shell.openExternal(candidate);
   });
 
-  ipcMain.handle("start-native-capture-audio", async (_event, videoLabel) => {
-    if (typeof videoLabel !== "string" || !videoLabel) return false;
-    const helper = getNativeAudioHelperPath();
-    if (!require("fs").existsSync(helper)) return false;
-    stopNativeAudio();
+  ipcMain.handle("get-native-audio-outputs", () => getNativeAudioOutputs());
 
-    return new Promise((resolve) => {
-      const process = spawn(helper, ["--monitor", videoLabel], {
-        windowsHide: true,
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      nativeAudioProcess = process;
-      let settled = false;
-      const finish = (started) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        resolve(started);
-      };
-      const timeout = setTimeout(() => {
-        if (nativeAudioProcess === process) stopNativeAudio();
-        finish(false);
-      }, 5000);
-
-      process.stdout.on("data", (chunk) => {
-        if (chunk.toString().includes("DirectShow audio monitoring started.")) {
-          finish(true);
-        }
-      });
-      process.stderr.on("data", (chunk) => {
-        console.warn("DirectShow-Audiofallback:", chunk.toString().trim());
-      });
-      process.on("error", () => finish(false));
-      process.on("exit", () => {
-        if (nativeAudioProcess === process) nativeAudioProcess = null;
-        finish(false);
-      });
-    });
+  ipcMain.handle("start-native-capture-audio", (_event, options) => {
+    if (!options || typeof options !== "object") {
+      return { ok: false, message: "Ungültige Audioanfrage." };
+    }
+    return startNativeAudio(options.videoLabel, options.outputName, options.volume, options.muted);
   });
 
   ipcMain.handle("stop-native-capture-audio", () => { stopNativeAudio(); return true; });
+  ipcMain.handle("set-native-capture-audio-volume", (_event, volume) => {
+    const normalizedVolume = normalizeNativeVolume(volume);
+    return normalizedVolume !== null && sendNativeAudioCommand(`volume ${normalizedVolume}`);
+  });
+  ipcMain.handle("set-native-capture-audio-muted", (_event, muted) => {
+    if (typeof muted !== "boolean") return false;
+    return sendNativeAudioCommand(muted ? "mute" : "unmute");
+  });
 
   ipcMain.handle("download-and-install-update", async () => {
     if (!canInstallUpdatesInPlace() || !lastValidatedUpdate?.installer) {

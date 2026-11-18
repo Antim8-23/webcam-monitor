@@ -93,6 +93,12 @@
               <option value="">Automatisch</option>
             </select>
           </label>
+          <label class="control-inline" for="audio-output-select">
+            <span class="label">Ausgabe</span>
+            <select id="audio-output-select" disabled>
+              <option value="default">Windows-Standard</option>
+            </select>
+          </label>
         </div>
 
         <div class="toolbar-center">
@@ -158,6 +164,7 @@
       </main>
     </div>
 
+    <script src="audio-state.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

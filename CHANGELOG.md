@@ -8,6 +8,18 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/) (`MAJOR
 - **MINOR** (z. B. `1.1.0`) — neue Funktionen, abwärtskompatibel
 - **MAJOR** (z. B. `2.0.0`) — größere, inkompatible Änderungen
 
+## [1.2.0] - 2026-11-18
+
+### Added
+
+- Auswahl der Windows-Audioausgabe mit Speicherung der Auswahl und Rückfall auf „Windows-Standard“, wenn ein Gerät nicht mehr verfügbar ist.
+- Für den nativen Capture-Audiopfad werden konkrete Ausgaben per lokalem WASAPI-Renderer angesprochen; die Windows-Systemlautstärke bleibt unverändert.
+- Automatisierte Zustandsprüfungen für Lautstärke, Stummschaltung und nicht verfügbare Audioausgaben.
+
+### Fixed
+
+- Lautstärkeregler und Stummschaltung funktionieren wieder für den nativen DirectShow-Audiopfad sowie für Chromium-Audio.
+
 ## [1.1.1] - 2026-11-17
 
 ### Korrigiert
